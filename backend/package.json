@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test:otp-email": "node scripts/test-otp-email.js",
+    "check:email": "node scripts/check-email-setup.js"
   },
   "dependencies": {
     "axios": "^1.7.9",
@@ -19,6 +21,7 @@
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.16",
     "pdf-parse": "^1.1.1",
+    "resend": "^6.12.3",
     "uuid": "^11.0.3"
   }
 }

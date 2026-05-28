@@ -10,6 +10,7 @@ import { ProfileFieldsForm, formatDobForInput } from './components/RegisterForm'
 import HowItWorks from './components/HowItWorks';
 import { scrollToSection } from './utils/scroll';
 import Icon from './components/Icon';
+import { CONTACT_LINKS } from './config/contact';
 
 const STATUS_COLORS = {
   Applied: 'bg-blue-100 text-blue-800',
@@ -213,14 +214,14 @@ export default function OnePage() {
       </section>
 
       {/* About + CTA row */}
-      <section id="about" className="scroll-mt-16 py-16 px-4 sm:px-6">
+      <section id="about" className="page-section scroll-mt-16 py-12 sm:py-16 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-10 items-center">
           <div>
             <span className="inline-flex items-center gap-2 bg-orange-100 text-brand-orange rounded-full px-4 py-2 text-sm font-bold mb-5">
               <Icon name="star" size={18} filled />
               300+ Openings Available Now!
             </span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4 leading-tight">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 mb-4 leading-tight">
               Start Your{' '}
               <span className="text-brand-orange">High-Earning Career</span> in Telecalling & More
             </h2>
@@ -265,9 +266,25 @@ export default function OnePage() {
           <span className="contact-kicker">Get Placed</span>
           <h2 className="contact-title">Contact Elite Placement Hub</h2>
           <p className="contact-desc">
-            Register free, verify your email with OTP, and our placement team will connect you with IT, Back Office,
+            Register free, verify email with OTP from Elite Placement Hub, and our team will connect you with IT, Back Office,
             BPO, and telecalling opportunities across India.
           </p>
+
+          <div className="contact-help-card">
+            <p className="contact-help-title">Need help?</p>
+            <p className="contact-help-name">{CONTACT_LINKS.name}</p>
+            <div className="contact-help-links">
+              <a href={CONTACT_LINKS.mailto} className="contact-help-link">
+                <Icon name="mail" size={20} />
+                {CONTACT_LINKS.email}
+              </a>
+              <a href={CONTACT_LINKS.phoneTel} className="contact-help-link">
+                <Icon name="call" size={20} />
+                {CONTACT_LINKS.phoneDisplay}
+              </a>
+            </div>
+          </div>
+
           <div className="contact-actions">
             {!isAuthenticated ? (
               <>
@@ -292,18 +309,24 @@ export default function OnePage() {
 
       {/* DASHBOARD */}
       {isAuthenticated && (
-        <section id="dashboard" className="scroll-mt-16 py-16 px-4">
-          <div className="max-w-7xl mx-auto">
-            <h2 className="section-title mb-8 flex items-center gap-2">
+        <section id="dashboard" className="page-section scroll-mt-16 py-12 sm:py-16 px-4">
+          <div className="max-w-7xl mx-auto w-full">
+            <h2 className="section-title section-title-row mb-8 flex items-center gap-2">
               <Icon name="dashboard" size={32} className="text-primary-600" />
               My Dashboard
             </h2>
 
             {!user?.isVerified && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-                <Icon name="warning" size={24} className="text-amber-600 shrink-0" />
-                <p className="text-amber-800 font-medium">Email not verified</p>
-                <button onClick={() => openAuth('verify', user?.email)} className="text-sm text-amber-700 underline mt-1">
+              <div className="verify-banner bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <Icon name="warning" size={24} className="text-amber-600 shrink-0" />
+                  <p className="text-amber-800 font-medium">Email not verified</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openAuth('verify', user?.email)}
+                  className="text-sm text-amber-700 font-semibold underline"
+                >
                   Verify now to apply for jobs
                 </button>
               </div>
@@ -377,9 +400,9 @@ export default function OnePage() {
 
       {/* APPLIED */}
       {isAuthenticated && (
-        <section id="applied" className="scroll-mt-16 bg-slate-50 py-16 px-4">
-          <div className="max-w-5xl mx-auto">
-            <h2 className="section-title mb-2 flex items-center gap-2">
+        <section id="applied" className="page-section scroll-mt-16 bg-slate-50 py-12 sm:py-16 px-4">
+          <div className="max-w-5xl mx-auto w-full">
+            <h2 className="section-title section-title-row mb-2 flex items-center gap-2">
               <Icon name="assignment" size={32} className="text-primary-600" />
               Applied Jobs
             </h2>
@@ -388,16 +411,16 @@ export default function OnePage() {
               Track your application status
             </p>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+            <div className="app-status-scroll">
               {STATUSES.map((status) => (
                 <button
                   key={status}
                   type="button"
                   onClick={() => setAppFilter(status)}
-                  className={`card py-3 text-center ${appFilter === status ? 'ring-2 ring-primary-500' : ''}`}
+                  className={`app-status-chip card py-3 text-center ${appFilter === status ? 'ring-2 ring-primary-500' : ''}`}
                 >
-                  <p className="text-2xl font-bold">{appCounts[status] || 0}</p>
-                  <p className="text-xs text-slate-600 mt-1">{status}</p>
+                  <p className="text-xl sm:text-2xl font-bold">{appCounts[status] || 0}</p>
+                  <p className="text-xs text-slate-600 mt-1 whitespace-nowrap">{status}</p>
                 </button>
               ))}
             </div>
@@ -442,11 +465,11 @@ export default function OnePage() {
       )}
 
       {/* CTA — orange gradient card */}
-      <section className="py-16 px-4 max-w-4xl mx-auto">
+      <section className="page-section py-12 sm:py-16 px-4 max-w-4xl mx-auto w-full">
         <div className="cta-gradient-card">
           <h2 className="text-2xl md:text-3xl font-extrabold mb-4">Your Success Story Starts Here</h2>
           <p className="text-orange-50 mb-8 max-w-lg mx-auto text-sm md:text-base leading-relaxed">
-            Register free, verify your email, and get AI-powered resume analysis with full application tracking.
+            Register free, get a welcome email, and use AI-powered resume analysis with full application tracking.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button

@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 export default function VerifyEmail() {
+  const { verifyOtp: verifyOtpAuth } = useAuth();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const token = searchParams.get('token');
@@ -11,6 +13,15 @@ export default function VerifyEmail() {
   const [otp, setOtp] = useState('');
   const [status, setStatus] = useState(token ? 'verifying' : 'pending');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.devOtp) {
+      toast.success(`OTP: ${location.state.devOtp}`, { duration: 15000 });
+    }
+    if (location.state?.previewUrl) {
+      window.open(location.state.previewUrl, '_blank', 'noopener');
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (token) {
@@ -35,9 +46,14 @@ export default function VerifyEmail() {
     }
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/verify-otp', { email: email.trim(), otp: otp.trim() });
+      const data = await verifyOtpAuth(email.trim(), otp.trim());
       setStatus('success');
       toast.success(data.message);
+      if (data.token) {
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1500);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Invalid OTP');
     } finally {
@@ -54,6 +70,7 @@ export default function VerifyEmail() {
     try {
       const { data } = await api.post('/auth/resend-verification', { email });
       if (data.devOtp) toast.success(`New OTP: ${data.devOtp}`, { duration: 12000 });
+      if (data.previewUrl) window.open(data.previewUrl, '_blank', 'noopener');
       else toast.success(data.message);
       setOtp('');
     } catch (err) {
@@ -100,7 +117,9 @@ export default function VerifyEmail() {
             <div className="text-center">
               <span className="text-5xl">📧</span>
               <h1 className="text-xl font-bold mt-4">Verify Your Email</h1>
-              <p className="text-slate-600 mt-2 text-sm">Enter the 6-digit OTP sent to your email.</p>
+              <p className="text-slate-600 mt-2 text-sm">
+                Enter the 6-digit OTP sent from <strong>Eliteplacementhubhiring@gmail.com</strong>. Check spam too.
+              </p>
             </div>
             <label className="register-field register-field-full">
               <span>Email</span>

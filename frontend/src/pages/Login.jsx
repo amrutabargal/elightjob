@@ -19,7 +19,7 @@ export default function Login() {
     } catch (err) {
       const data = err.response?.data;
       if (data?.needsVerification) {
-        toast.error('Please verify your email first');
+        toast.error('Verify OTP from your email first');
         navigate('/verify-email', { state: { email: data.email || email } });
       } else {
         toast.error(data?.message || 'Login failed');

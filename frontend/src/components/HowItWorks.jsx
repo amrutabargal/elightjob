@@ -11,7 +11,7 @@ const STEPS = [
     icon: 'mark_email_read',
     tone: 'violet',
     title: 'Email Verification',
-    desc: 'Secure OTP registration before you apply for any role.',
+    desc: 'Register and verify with OTP sent to your email.',
   },
   {
     icon: 'smart_toy',
@@ -47,7 +47,7 @@ export default function HowItWorks() {
           <span className="how-section-kicker">Simple Process</span>
           <h2 className="how-section-title">How It Works</h2>
           <p className="how-section-sub">
-            Register once, verify your email, and manage your placement journey in one place.
+            Register once, login with your email & password, and manage your placement journey in one place.
           </p>
         </header>
 

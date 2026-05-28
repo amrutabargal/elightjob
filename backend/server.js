@@ -9,7 +9,7 @@ import applicationRoutes from './routes/applicationRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import { BRAND_NAME, MONGODB_DB_NAME } from './config/brand.js';
-import { getEmailTransporter } from './config/email.js';
+import { initEmailOnStartup } from './config/email.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -98,7 +98,7 @@ process.on('SIGTERM', shutdown);
 
 const boot = async () => {
   await connectDB();
-  await getEmailTransporter();
+  await initEmailOnStartup();
   await startServer();
 };
 

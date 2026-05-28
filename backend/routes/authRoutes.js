@@ -1,5 +1,6 @@
 import express from 'express';
 import { BRAND_NAME } from '../config/brand.js';
+import { emailFooterHtml } from '../config/support.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User from '../models/User.js';
@@ -7,6 +8,7 @@ import { sendEmail } from '../config/email.js';
 import { protect } from '../middleware/auth.js';
 import { generateUniqueUserId } from '../utils/generateUserId.js';
 import { assignOtpToUser } from '../utils/emailOtp.js';
+import { sendWelcomeEmail } from '../utils/welcomeEmail.js';
 
 const router = express.Router();
 
@@ -19,7 +21,13 @@ const isDev = process.env.NODE_ENV !== 'production';
 
 const GENDERS = ['Male', 'Female', 'Other'];
 
-const normalizeMobile = (value) => String(value || '').replace(/\D/g, '');
+const normalizeMobile = (value) => {
+  let digits = String(value || '').replace(/\D/g, '');
+  if (digits.length >= 12 && digits.startsWith('91')) digits = digits.slice(2);
+  else if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+  else if (digits.length > 10) digits = digits.slice(-10);
+  return digits.slice(0, 10);
+};
 
 const validateRegistration = (body) => {
   const { name, dateOfBirth, gender, mobile, email, address, password } = body;
@@ -92,17 +100,22 @@ router.post('/register', async (req, res) => {
       email: emailLower,
       address: address.trim(),
       password,
+      isVerified: false,
     });
 
-    const { otp, previewUrl } = await assignOtpToUser(user);
+    const { otp, previewUrl, gmail, emailWarning } = await assignOtpToUser(user);
+    const realInbox = Boolean(gmail);
 
     res.status(201).json({
-      message: previewUrl
-        ? 'OTP sent! Open the preview link (terminal) to see your email.'
-        : 'OTP sent to your email. Enter the 6-digit code to verify your account.',
+      message: realInbox
+        ? `Registration successful! OTP sent to ${user.email}. Check inbox & spam folder.`
+        : `OTP for ${user.email} — see green toast (server email not configured for real inbox).`,
       userId: user.userId,
       email: user.email,
-      ...(isDev && { devOtp: otp, previewUrl }),
+      emailMode: realInbox ? 'gmail' : 'temp',
+      devOtp: realInbox ? undefined : otp,
+      previewUrl: realInbox ? undefined : previewUrl,
+      emailWarning: realInbox ? undefined : emailWarning,
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -165,7 +178,12 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     if (user.isVerified) {
-      return res.json({ message: 'Email is already verified. You can login.' });
+      const token = signToken(user._id);
+      return res.json({
+        message: 'Email is already verified.',
+        token,
+        user: user.toJSON(),
+      });
     }
 
     if (!user.emailOtp || user.emailOtp !== code) {
@@ -181,7 +199,19 @@ router.post('/verify-otp', async (req, res) => {
     user.emailOtpExpires = undefined;
     await user.save();
 
-    res.json({ message: 'Email verified successfully! You can now login.' });
+    try {
+      await sendWelcomeEmail(user, { afterVerification: true });
+    } catch (mailErr) {
+      console.warn('Welcome email after verify:', mailErr.message);
+    }
+
+    const token = signToken(user._id);
+
+    res.json({
+      message: 'Email verified! You are logged in.',
+      token,
+      user: user.toJSON(),
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -198,16 +228,19 @@ router.post('/resend-verification', async (req, res) => {
     }
 
     if (user.isVerified) {
-      return res.status(400).json({ message: 'Email is already verified' });
+      return res.status(400).json({ message: 'Email is already verified. You can login.' });
     }
 
-    const { otp, previewUrl } = await assignOtpToUser(user);
+    const { otp, previewUrl, gmail, emailWarning } = await assignOtpToUser(user);
 
     res.json({
-      message: previewUrl
-        ? 'New OTP sent. Open preview link in backend terminal.'
-        : 'New OTP sent to your email.',
-      ...(isDev && { devOtp: otp, previewUrl }),
+      message: gmail
+        ? `New OTP sent to ${user.email}. Check inbox & spam.`
+        : `New OTP for ${user.email} — see code below or preview link.`,
+      emailMode: gmail ? 'gmail' : 'temp',
+      devOtp: gmail ? undefined : otp,
+      previewUrl: gmail ? undefined : previewUrl,
+      emailWarning: gmail ? undefined : emailWarning,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -230,7 +263,7 @@ router.post('/login', async (req, res) => {
 
     if (!user.isVerified) {
       return res.status(403).json({
-        message: 'Please verify your email with OTP before logging in.',
+        message: 'Please verify your email with the OTP sent to your inbox.',
         needsVerification: true,
         email: user.email,
       });
@@ -269,18 +302,31 @@ router.post('/forgot-password', async (req, res) => {
 
     const url = `${process.env.CLIENT_URL}/?reset=${resetToken}`;
 
-    await sendEmail({
+    const mailResult = await sendEmail({
       to: user.email,
       subject: `Reset your password - ${BRAND_NAME}`,
       html: `
-        <h2>Password Reset</h2>
-        <p>Hi ${user.name}, click the link below to reset your password:</p>
-        <a href="${url}">${url}</a>
-        <p>Link expires in 1 hour.</p>
+        <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px">
+          <h2 style="color:#ea580c;margin:0 0 8px">${BRAND_NAME}</h2>
+          <p style="color:#334155">Hi ${user.name},</p>
+          <p style="color:#334155">Click the button below to reset your password:</p>
+          <p style="margin:20px 0">
+            <a href="${url}" style="background:#ea580c;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">Reset Password</a>
+          </p>
+          <p style="color:#64748b;font-size:13px">Or copy this link:<br/><a href="${url}" style="color:#0d4f5c">${url}</a></p>
+          <p style="color:#64748b;font-size:13px">Link expires in <strong>1 hour</strong>. Check Spam if not in Inbox.</p>
+          ${emailFooterHtml()}
+        </div>
       `,
     });
 
-    res.json({ message: 'If the email exists, a reset link has been sent.' });
+    res.json({
+      message: mailResult?.gmail
+        ? `Password reset link sent to ${user.email}. Check inbox & spam.`
+        : 'If the email exists, a reset link has been sent.',
+      emailMode: mailResult?.gmail ? 'gmail' : 'temp',
+      previewUrl: mailResult?.previewUrl,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

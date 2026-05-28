@@ -19,9 +19,16 @@ export default function Logo({ size = 'md', light = false }) {
       <span
         className={`font-extrabold tracking-tight ${s.text} ${
           light ? 'text-white' : 'text-slate-900'
-        }`}
+        } logo-brand-full`}
       >
         {BRAND_SHORT}
+      </span>
+      <span
+        className={`font-extrabold tracking-tight ${s.text} logo-brand-short ${
+          light ? 'text-white' : 'text-slate-900'
+        }`}
+      >
+        Elite Hub
       </span>
     </div>
   );

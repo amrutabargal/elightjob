@@ -18,12 +18,13 @@ export default function Register() {
     try {
       const data = await register(payload);
       if (data.devOtp) {
-        toast.success(`Dev OTP: ${data.devOtp}`, { duration: 12000 });
-      } else {
-        toast.success(data.message || 'OTP sent to your email!');
+        toast.success(`Your OTP: ${data.devOtp}`, { duration: 20000 });
+        if (data.previewUrl) window.open(data.previewUrl, '_blank', 'noopener');
       }
+      if (data.emailWarning) toast(data.emailWarning, { icon: '⚠️', duration: 12000 });
+      toast.success(data.message || (data.emailMode === 'gmail' ? 'OTP sent to your email!' : 'Enter OTP from toast'));
       if (data.userId) toast(`User ID: ${data.userId}`, { icon: 'ℹ️' });
-      navigate('/verify-email', { state: { email: payload.email } });
+      navigate('/verify-email', { state: { email: payload.email, devOtp: data.devOtp, previewUrl: data.previewUrl } });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed');
     } finally {

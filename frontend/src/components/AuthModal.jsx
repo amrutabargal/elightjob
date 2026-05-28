@@ -6,6 +6,7 @@ import { scrollToSection } from '../utils/scroll';
 import Icon from './Icon';
 import RegisterForm from './RegisterForm';
 import Logo from './Logo';
+import AuthSupportHelp from './AuthSupportHelp';
 
 const MODAL_META = {
   login: {
@@ -36,7 +37,7 @@ const MODAL_META = {
 };
 
 export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetToken, defaultEmail = '' }) {
-  const { login, register } = useAuth();
+  const { login, register, verifyOtp } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState(defaultEmail);
   const [password, setPassword] = useState('');
@@ -77,7 +78,7 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     } catch (err) {
       const data = err.response?.data;
       if (data?.needsVerification) {
-        toast.error('Please verify your email first');
+        toast.error('Enter OTP sent to your email first');
         onSwitch('verify', data.email || email);
       } else {
         toast.error(data?.message || 'Login failed');
@@ -95,15 +96,21 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     setLoading(true);
     try {
       const data = await register(payload);
-      if (data.previewUrl) {
-        toast.success(`OTP: ${data.devOtp || 'sent'} — check preview in browser`, { duration: 15000 });
-        window.open(data.previewUrl, '_blank', 'noopener');
-      } else if (data.devOtp) {
-        toast.success(`OTP: ${data.devOtp}`, { duration: 12000 });
+      if (data.emailMode === 'gmail') {
+        toast.success(data.message || 'OTP sent to your email!', { duration: 10000 });
       } else {
-        toast.success(data.message || 'OTP sent to your email!');
+        if (data.devOtp) {
+          toast.success(`Your OTP: ${data.devOtp}`, { duration: 20000 });
+        }
+        if (data.emailWarning) {
+          toast(data.emailWarning, { icon: '⚠️', duration: 12000 });
+        }
+        if (data.previewUrl) {
+          window.open(data.previewUrl, '_blank', 'noopener');
+        }
+        toast.success(data.message || 'Use OTP shown above', { duration: 8000 });
       }
-      if (data.userId) toast(`User ID: ${data.userId}`, { icon: 'ℹ️' });
+      if (data.userId) toast(`User ID: ${data.userId}`, { icon: 'ℹ️', duration: 8000 });
       setOtp('');
       setVerifyStatus('pending');
       onSwitch('verify', payload.email);
@@ -119,7 +126,12 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     setLoading(true);
     try {
       const { data } = await api.post('/auth/forgot-password', { email });
-      toast.success(data.message);
+      if (data.emailMode === 'gmail') {
+        toast.success(data.message || 'Reset link sent! Check inbox & spam.', { duration: 10000 });
+      } else {
+        if (data.previewUrl) window.open(data.previewUrl, '_blank', 'noopener');
+        toast.success(data.message);
+      }
       onSwitch('login');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Request failed');
@@ -155,9 +167,13 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     }
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/verify-otp', { email: email.trim(), otp: otp.trim() });
+      const data = await verifyOtp(email.trim(), otp.trim());
       setVerifyStatus('success');
       toast.success(data.message);
+      if (data.token) {
+        onClose();
+        scrollToSection('dashboard');
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Verification failed');
     } finally {
@@ -173,7 +189,9 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     setLoading(true);
     try {
       const { data } = await api.post('/auth/resend-verification', { email });
-      if (data.previewUrl) {
+      if (data.emailMode === 'gmail') {
+        toast.success(data.message || 'New OTP sent! Check inbox & spam.', { duration: 10000 });
+      } else if (data.previewUrl) {
         toast.success(`New OTP: ${data.devOtp}`);
         window.open(data.previewUrl, '_blank', 'noopener');
       } else if (data.devOtp) {
@@ -252,6 +270,7 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
                   Register free
                 </button>
               </p>
+              <AuthSupportHelp />
             </form>
           )}
 
@@ -289,6 +308,7 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
               <button type="button" onClick={() => onSwitch('login')} className="auth-link w-full text-center">
                 Back to Login
               </button>
+              <AuthSupportHelp />
             </form>
           )}
 
@@ -351,7 +371,12 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
                       <Icon name="mark_email_read" size={36} />
                     </div>
                     <p>
-                      Enter the <strong>6-digit OTP</strong> we sent to your email.
+                      Enter the <strong>6-digit OTP</strong> sent from{' '}
+                      <strong>Eliteplacementhubhiring@gmail.com</strong> to{' '}
+                      <strong>{email || 'your email'}</strong>.
+                    </p>
+                    <p className="auth-otp-hint" style={{ marginTop: '0.5rem' }}>
+                      Check inbox & spam. If Gmail is not set up yet, OTP appears in the green toast / preview link.
                     </p>
                   </div>
                   <label className="auth-field">
@@ -388,7 +413,8 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
                   >
                     {loading ? 'Sending...' : 'Resend OTP'}
                   </button>
-                  <p className="auth-otp-hint">Code expires in 10 minutes</p>
+                  <p className="auth-otp-hint">Code expires in 10 minutes. Check inbox & spam.</p>
+                  <AuthSupportHelp />
                 </form>
               )}
             </div>

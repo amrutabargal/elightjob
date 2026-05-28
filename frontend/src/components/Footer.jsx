@@ -2,6 +2,7 @@ import Logo from './Logo';
 import Icon from './Icon';
 import { scrollToSection } from '../utils/scroll';
 import { BRAND_NAME, BRAND_TAGLINE } from '../config/brand';
+import { CONTACT_LINKS } from '../config/contact';
 
 export default function Footer() {
   return (
@@ -26,14 +27,15 @@ export default function Footer() {
             </button>
           </div>
           <div className="flex flex-col gap-2 text-sm">
-            <span className="inline-flex items-center gap-1.5">
-              <Icon name="support_agent" size={16} className="text-orange-400" />
-              Placement support
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Icon name="public" size={16} className="text-orange-400" />
-              All India · 36+ cities
-            </span>
+            <span className="text-slate-300 font-semibold">{CONTACT_LINKS.name}</span>
+            <a href={CONTACT_LINKS.mailto} className="footer-contact-link inline-flex items-center gap-1.5 hover:text-orange-400 transition-colors">
+              <Icon name="mail" size={16} className="text-orange-400 shrink-0" />
+              {CONTACT_LINKS.email}
+            </a>
+            <a href={CONTACT_LINKS.phoneTel} className="footer-contact-link inline-flex items-center gap-1.5 hover:text-orange-400 transition-colors">
+              <Icon name="call" size={16} className="text-orange-400" />
+              {CONTACT_LINKS.phoneDisplay}
+            </a>
           </div>
         </div>
         <p className="text-center text-xs mt-10 text-slate-600 border-t border-slate-800 pt-8">

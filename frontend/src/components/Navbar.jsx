@@ -24,15 +24,20 @@ export default function Navbar({ onOpenAuth }) {
     scrollToSection(id);
   };
 
+  const closeAnd = (fn) => () => {
+    setMenuOpen(false);
+    fn();
+  };
+
   return (
     <nav className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-[58px] items-center gap-4">
-          <button type="button" onClick={() => nav('home')} className="shrink-0 hover:opacity-90">
+        <div className="flex justify-between min-h-[58px] h-auto py-2 sm:py-0 sm:h-[58px] items-center gap-2 sm:gap-4">
+          <button type="button" onClick={() => nav('home')} className="shrink-0 hover:opacity-90 max-w-[55%] sm:max-w-none">
             <Logo size="sm" />
           </button>
 
-          <div className="hidden lg:flex flex-1 justify-center items-center gap-1 xl:gap-2">
+          <div className="hidden lg:flex flex-1 justify-center items-center gap-1 xl:gap-2 min-w-0">
             {NAV_ITEMS.map((item) => (
               <button
                 key={item.id}
@@ -40,13 +45,16 @@ export default function Navbar({ onOpenAuth }) {
                 onClick={() => nav(item.id)}
                 className={`tc-nav-link ${activeId === item.id ? 'tc-nav-link-active' : ''}`}
               >
-                {item.label}
+                <span className="hidden xl:inline">{item.label}</span>
+                <span className="xl:hidden">
+                  {item.id === 'opportunities' ? 'Jobs' : item.id === 'testimonials' ? 'Stats' : item.label.split(' ')[0]}
+                </span>
                 {item.chevron && <Icon name="expand_more" size={18} className="opacity-70 -ml-0.5" />}
               </button>
             ))}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {isAuthenticated ? (
               <>
                 <button type="button" onClick={() => nav('dashboard')} className="tc-nav-link hidden md:inline-flex text-sm">
@@ -66,6 +74,7 @@ export default function Navbar({ onOpenAuth }) {
               className="lg:hidden p-2 rounded-lg hover:bg-slate-50 text-slate-700"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Menu"
+              aria-expanded={menuOpen}
             >
               <Icon name={menuOpen ? 'close' : 'menu'} size={24} />
             </button>
@@ -73,7 +82,7 @@ export default function Navbar({ onOpenAuth }) {
         </div>
 
         {menuOpen && (
-          <div className="lg:hidden border-t border-slate-100 py-3 flex flex-col gap-0.5 pb-4">
+          <div className="lg:hidden border-t border-slate-100 py-3 flex flex-col gap-0.5 pb-4 max-h-[min(70vh,480px)] overflow-y-auto">
             {NAV_ITEMS.map((item) => (
               <button
                 key={`m-${item.id}`}
@@ -85,6 +94,31 @@ export default function Navbar({ onOpenAuth }) {
                 {item.chevron && <Icon name="expand_more" size={18} />}
               </button>
             ))}
+
+            <div className="nav-mobile-auth">
+              {isAuthenticated ? (
+                <>
+                  <button type="button" onClick={() => nav('dashboard')} className="btn-primary">
+                    <Icon name="dashboard" size={20} />
+                    Dashboard
+                  </button>
+                  <button type="button" onClick={closeAnd(logout)} className="btn-secondary">
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={closeAnd(() => onOpenAuth('login'))} className="btn-primary">
+                    <Icon name="login" size={20} />
+                    Login
+                  </button>
+                  <button type="button" onClick={closeAnd(() => onOpenAuth('register'))} className="btn-secondary">
+                    <Icon name="person_add" size={20} />
+                    Register Free
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>
