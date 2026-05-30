@@ -9,6 +9,7 @@ import { protect } from '../middleware/auth.js';
 import { generateUniqueUserId } from '../utils/generateUserId.js';
 import { assignOtpToUser } from '../utils/emailOtp.js';
 import { sendWelcomeEmail } from '../utils/welcomeEmail.js';
+import { PRIMARY_CLIENT_URL } from '../config/client.js';
 
 const router = express.Router();
 
@@ -300,7 +301,7 @@ router.post('/forgot-password', async (req, res) => {
     user.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
     await user.save();
 
-    const url = `${process.env.CLIENT_URL}/?reset=${resetToken}`;
+    const url = `${PRIMARY_CLIENT_URL}/?reset=${resetToken}`;
 
     const mailResult = await sendEmail({
       to: user.email,

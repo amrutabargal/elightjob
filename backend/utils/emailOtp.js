@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { sendEmail } from '../config/email.js';
 import { BRAND_NAME } from '../config/brand.js';
 import { emailFooterHtml, SUPPORT_EMAIL } from '../config/support.js';
+import { PRIMARY_CLIENT_URL } from '../config/client.js';
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -14,7 +15,7 @@ export function getOtpExpiry() {
 }
 
 export async function sendOtpEmail(user, otp) {
-  const loginUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const loginUrl = PRIMARY_CLIENT_URL;
 
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px">

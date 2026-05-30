@@ -10,6 +10,7 @@ import userRoutes from './routes/userRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import { BRAND_NAME, MONGODB_DB_NAME } from './config/brand.js';
 import { initEmailOnStartup } from './config/email.js';
+import { isAllowedOrigin } from './config/client.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -17,7 +18,13 @@ const PORT = Number(process.env.PORT) || 5000;
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS blocked origin: ${origin}`));
+      }
+    },
     credentials: true,
   })
 );

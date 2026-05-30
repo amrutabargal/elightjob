@@ -1,10 +1,11 @@
 import { sendEmail } from '../config/email.js';
 import { BRAND_NAME } from '../config/brand.js';
 import { emailFooterHtml, SUPPORT_EMAIL } from '../config/support.js';
+import { PRIMARY_CLIENT_URL } from '../config/client.js';
 
 export async function sendWelcomeEmail(user, options = {}) {
   const { afterVerification = true } = options;
-  const loginUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const loginUrl = PRIMARY_CLIENT_URL;
 
   const intro = afterVerification
     ? 'Your email is <strong>verified</strong> and registration is complete. You can login anytime.'
