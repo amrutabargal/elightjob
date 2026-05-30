@@ -7,7 +7,7 @@ import User from '../models/User.js';
 import { sendEmail } from '../config/email.js';
 import { protect } from '../middleware/auth.js';
 import { generateUniqueUserId } from '../utils/generateUserId.js';
-import { setOtpOnUser, sendOtpEmailInBackground } from '../utils/emailOtp.js';
+import { setOtpOnUser, sendOtpEmailWithTimeout } from '../utils/emailOtp.js';
 import { sendWelcomeEmail } from '../utils/welcomeEmail.js';
 import { PRIMARY_CLIENT_URL } from '../config/client.js';
 
@@ -105,14 +105,22 @@ router.post('/register', async (req, res) => {
     });
 
     const { otp } = await setOtpOnUser(user);
-    sendOtpEmailInBackground(user, otp);
+
+    try {
+      await sendOtpEmailWithTimeout(user, otp);
+    } catch (err) {
+      console.error('Register OTP email failed:', err.message);
+      return res.status(503).json({
+        message: `Could not send OTP to ${user.email}. Please use Resend OTP or try again shortly.`,
+        email: user.email,
+        userId: user.userId,
+      });
+    }
 
     res.status(201).json({
       message: `Registration successful! OTP sent to ${user.email}. Check inbox & spam folder.`,
       userId: user.userId,
       email: user.email,
-      emailMode: isDev ? 'temp' : 'gmail',
-      devOtp: isDev ? otp : undefined,
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -229,12 +237,18 @@ router.post('/resend-verification', async (req, res) => {
     }
 
     const { otp } = await setOtpOnUser(user);
-    sendOtpEmailInBackground(user, otp);
+
+    try {
+      await sendOtpEmailWithTimeout(user, otp);
+    } catch (err) {
+      console.error('Resend OTP email failed:', err.message);
+      return res.status(503).json({
+        message: `Could not send OTP to ${user.email}. Please try again shortly.`,
+      });
+    }
 
     res.json({
       message: `New OTP sent to ${user.email}. Check inbox & spam.`,
-      emailMode: isDev ? 'temp' : 'gmail',
-      devOtp: isDev ? otp : undefined,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -317,9 +331,7 @@ router.post('/forgot-password', async (req, res) => {
     res.json({
       message: mailResult?.gmail
         ? `Password reset link sent to ${user.email}. Check inbox & spam.`
-        : 'If the email exists, a reset link has been sent.',
-      emailMode: mailResult?.gmail ? 'gmail' : 'temp',
-      previewUrl: mailResult?.previewUrl,
+        : `If the email exists, a reset link has been sent to ${user.email}. Check inbox & spam.`,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

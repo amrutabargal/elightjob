@@ -19,15 +19,9 @@ export default function Register() {
     const toastId = toast.loading('Creating account… please wait.');
     try {
       const data = await register(payload);
-      if (data.devOtp) {
-        toast.success(`Your OTP: ${data.devOtp}`, { id: toastId, duration: 20000 });
-        if (data.previewUrl) window.open(data.previewUrl, '_blank', 'noopener');
-      } else {
-        toast.success(data.message || 'OTP sent to your email!', { id: toastId });
-      }
-      if (data.emailWarning) toast(data.emailWarning, { icon: '⚠️', duration: 12000 });
+      toast.success(data.message || 'OTP sent to your email! Check inbox & spam.', { id: toastId });
       if (data.userId) toast(`User ID: ${data.userId}`, { icon: 'ℹ️' });
-      navigate('/verify-email', { state: { email: payload.email, devOtp: data.devOtp, previewUrl: data.previewUrl } });
+      navigate('/verify-email', { state: { email: payload.email } });
     } catch (err) {
       toast.error(getApiErrorMessage(err, 'Registration failed'), { id: toastId });
     } finally {

@@ -15,15 +15,6 @@ export default function VerifyEmail() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (location.state?.devOtp) {
-      toast.success(`OTP: ${location.state.devOtp}`, { duration: 15000 });
-    }
-    if (location.state?.previewUrl) {
-      window.open(location.state.previewUrl, '_blank', 'noopener');
-    }
-  }, [location.state]);
-
-  useEffect(() => {
     if (token) {
       api
         .get(`/auth/verify-email/${token}`)
@@ -69,9 +60,7 @@ export default function VerifyEmail() {
     setLoading(true);
     try {
       const { data } = await api.post('/auth/resend-verification', { email });
-      if (data.devOtp) toast.success(`New OTP: ${data.devOtp}`, { duration: 12000 });
-      if (data.previewUrl) window.open(data.previewUrl, '_blank', 'noopener');
-      else toast.success(data.message);
+      toast.success(data.message || 'New OTP sent! Check inbox & spam.');
       setOtp('');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to resend');

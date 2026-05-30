@@ -74,8 +74,12 @@ export async function setOtpOnUser(user) {
   return { otp };
 }
 
+export async function sendOtpEmailWithTimeout(user, otp) {
+  return withEmailTimeout(sendOtpEmail(user, otp));
+}
+
 export function sendOtpEmailInBackground(user, otp) {
-  withEmailTimeout(sendOtpEmail(user, otp)).catch((err) => {
+  sendOtpEmailWithTimeout(user, otp).catch((err) => {
     console.error(`OTP email to ${user.email} failed:`, err.message);
   });
 }

@@ -103,20 +103,10 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     const toastId = toast.loading('Creating account… server may take up to 1 min on first try.');
     try {
       const data = await register(payload);
-      if (data.emailMode === 'gmail') {
-        toast.success(data.message || 'OTP sent to your email!', { id: toastId, duration: 10000 });
-      } else {
-        if (data.devOtp) {
-          toast.success(`Your OTP: ${data.devOtp}`, { id: toastId, duration: 20000 });
-        }
-        if (data.emailWarning) {
-          toast(data.emailWarning, { icon: '⚠️', duration: 12000 });
-        }
-        if (data.previewUrl) {
-          window.open(data.previewUrl, '_blank', 'noopener');
-        }
-        toast.success(data.message || 'Use OTP shown above', { id: toastId, duration: 8000 });
-      }
+      toast.success(data.message || 'OTP sent to your email! Check inbox & spam.', {
+        id: toastId,
+        duration: 10000,
+      });
       if (data.userId) toast(`User ID: ${data.userId}`, { icon: 'ℹ️', duration: 8000 });
       setOtp('');
       setVerifyStatus('pending');
@@ -133,12 +123,7 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     setLoading(true);
     try {
       const { data } = await api.post('/auth/forgot-password', { email });
-      if (data.emailMode === 'gmail') {
-        toast.success(data.message || 'Reset link sent! Check inbox & spam.', { duration: 10000 });
-      } else {
-        if (data.previewUrl) window.open(data.previewUrl, '_blank', 'noopener');
-        toast.success(data.message);
-      }
+      toast.success(data.message || 'Reset link sent! Check inbox & spam.', { duration: 10000 });
       onSwitch('login');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Request failed');
@@ -196,16 +181,7 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     setLoading(true);
     try {
       const { data } = await api.post('/auth/resend-verification', { email });
-      if (data.emailMode === 'gmail') {
-        toast.success(data.message || 'New OTP sent! Check inbox & spam.', { duration: 10000 });
-      } else if (data.previewUrl) {
-        toast.success(`New OTP: ${data.devOtp}`);
-        window.open(data.previewUrl, '_blank', 'noopener');
-      } else if (data.devOtp) {
-        toast.success(`New OTP: ${data.devOtp}`, { duration: 12000 });
-      } else {
-        toast.success(data.message);
-      }
+      toast.success(data.message || 'New OTP sent! Check inbox & spam.', { duration: 10000 });
       setOtp('');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to resend');
@@ -383,7 +359,7 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
                       <strong>{email || 'your email'}</strong>.
                     </p>
                     <p className="auth-otp-hint" style={{ marginTop: '0.5rem' }}>
-                      Check inbox & spam. If Gmail is not set up yet, OTP appears in the green toast / preview link.
+                      Check inbox & spam. OTP is only sent to your email.
                     </p>
                   </div>
                   <label className="auth-field">
