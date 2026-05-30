@@ -29,7 +29,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', message: `${BRAND_NAME} API` });
+  res.json({
+    status: 'ok',
+    message: `${BRAND_NAME} API`,
+    email: {
+      gmail: Boolean(process.env.SMTP_USER && (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD)),
+      resend: Boolean(process.env.RESEND_API_KEY?.trim()),
+    },
+  });
 });
 
 app.use('/api/auth', authRoutes);

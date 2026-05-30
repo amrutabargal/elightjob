@@ -20,6 +20,12 @@ const hasSmtpConfig = () => Boolean(getSmtpUser() && getSmtpPass());
 
 const hasResendKey = () => Boolean(process.env.RESEND_API_KEY?.trim());
 
+const smtpTimeouts = {
+  connectionTimeout: isDev ? 8000 : 25000,
+  greetingTimeout: isDev ? 8000 : 25000,
+  socketTimeout: isDev ? 10000 : 30000,
+};
+
 function extractOtp(html) {
   return html.match(/>(\d{6})</)?.[1];
 }
@@ -63,9 +69,7 @@ async function createGmailTransporter() {
 
   const smtpOptions = {
     auth: { user, pass },
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 10000,
+    ...smtpTimeouts,
   };
 
   const configs = [
@@ -155,31 +159,41 @@ async function getGmailTransport() {
   return transporter;
 }
 
-/** Send to real inbox: Gmail → Resend → (dev only) Ethereal test */
+async function tryGmailSend({ to, subject, html }) {
+  if (useTempMailOnly() || !hasSmtpConfig()) return null;
+
+  const transport = await getGmailTransport();
+  const from = process.env.EMAIL_FROM || `Elite Placement Hub <${getSmtpUser()}>`;
+  await transport.sendMail({ from, to, subject, html });
+  return { sent: true, gmail: true, to };
+}
+
+async function tryResendSend({ to, subject, html }) {
+  if (!hasResendKey()) return null;
+  return sendViaResend({ to, subject, html });
+}
+
+/** Send to real inbox: Resend (production) → Gmail → Ethereal (dev only) */
 export const sendEmail = async ({ to, subject, html }) => {
   const devOtp = extractOtp(html);
+  const failures = [];
 
-  if (!useTempMailOnly() && hasSmtpConfig()) {
+  const providers = isDev
+    ? [tryGmailSend, tryResendSend]
+    : [tryResendSend, tryGmailSend];
+
+  for (const provider of providers) {
     try {
-      const transport = await getGmailTransport();
-      const from = process.env.EMAIL_FROM || `Elite Placement Hub <${getSmtpUser()}>`;
-      await transport.sendMail({ from, to, subject, html });
-      return { sent: true, gmail: true, to, devOtp };
+      const result = await provider({ to, subject, html });
+      if (result?.sent) {
+        return { ...result, devOtp };
+      }
     } catch (err) {
-      console.warn('Gmail failed:', err.message?.split('\n')[0]);
+      failures.push(err.message?.split('\n')[0] || String(err));
+      console.warn('Email provider failed:', failures[failures.length - 1]);
       gmailReady = false;
       transporter = null;
       transporterMode = null;
-    }
-  }
-
-  if (hasResendKey()) {
-    try {
-      const result = await sendViaResend({ to, subject, html });
-      return { ...result, devOtp };
-    } catch (err) {
-      console.warn('Resend failed:', err.message);
-      resendReady = false;
     }
   }
 
@@ -187,11 +201,7 @@ export const sendEmail = async ({ to, subject, html }) => {
     return sendViaEthereal({ to, subject, html });
   }
 
-  console.log('\n--- EMAIL FAILED ---');
-  console.log(`To: ${to}`);
-  if (devOtp) console.log(`OTP: ${devOtp}`);
-  console.log('Configure Gmail App Password or RESEND_API_KEY in .env\n');
-  return { sent: false, dev: true, devOtp, emailWarning: 'Email not configured on server' };
+  throw new Error(failures.join(' | ') || 'Email not configured on server');
 };
 
 async function ensureTransporter() {

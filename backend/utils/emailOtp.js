@@ -5,7 +5,8 @@ import { emailFooterHtml, SUPPORT_EMAIL } from '../config/support.js';
 import { PRIMARY_CLIENT_URL } from '../config/client.js';
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
-const EMAIL_SEND_TIMEOUT_MS = 8000;
+const EMAIL_SEND_TIMEOUT_MS =
+  process.env.NODE_ENV === 'production' ? 45000 : 15000;
 
 export function generateOtp() {
   return String(crypto.randomInt(100000, 999999));
@@ -52,6 +53,10 @@ export async function sendOtpEmail(user, otp) {
     subject: `${otp} — Verify your ${BRAND_NAME} registration`,
     html,
   });
+
+  if (!result?.sent) {
+    throw new Error('OTP email was not sent');
+  }
 
   if (result?.dev) {
     console.log(`\n>>> EMAIL OTP for ${user.email}: ${otp} <<<\n`);
