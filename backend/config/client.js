@@ -1,8 +1,16 @@
-const parseClientUrls = () =>
-  (process.env.CLIENT_URL || 'http://localhost:5173')
+const DEFAULT_ORIGINS = [
+  'http://localhost:5173',
+  'https://eliteplacement.netlify.app',
+];
+
+const parseClientUrls = () => {
+  const fromEnv = (process.env.CLIENT_URL || '')
     .split(',')
     .map((url) => url.trim())
     .filter(Boolean);
+
+  return [...new Set([...DEFAULT_ORIGINS, ...fromEnv])];
+};
 
 export const CLIENT_URLS = parseClientUrls();
 
