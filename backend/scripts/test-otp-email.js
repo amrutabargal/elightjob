@@ -16,7 +16,7 @@ const result = await sendOtpEmail(fakeUser, otp);
 console.log('\n--- OTP email test ---');
 console.log('To:', to);
 console.log('OTP:', otp);
-if (result.gmail) console.log('Status: Sent via Gmail ✓');
+if (result.sent) console.log('Status: Sent via', result.provider || 'email', '✓');
 else if (result.previewUrl) console.log('Status: Test inbox — open:', result.previewUrl);
 else console.log('Result:', result);
 console.log('');

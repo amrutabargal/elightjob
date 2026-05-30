@@ -3,29 +3,36 @@
  * Run: node scripts/check-email-setup.js
  */
 import 'dotenv/config';
+import { getEmailStatus } from '../config/email.js';
 
+const status = getEmailStatus();
 const pass = String(process.env.SMTP_PASS || '').replace(/\s/g, '');
 
 console.log('\n=== Email setup check ===\n');
+console.log('Status:', status);
 
-if (process.env.USE_TEMP_MAIL === 'true') {
-  console.log('USE_TEMP_MAIL=true → only test preview, not real inbox');
+if (process.env.NODE_ENV === 'production' && !status.brevo && !status.resend) {
+  console.log('\n❌ PRODUCTION: Gmail SMTP usually fails on Render.');
+  console.log('   FIX (5 min, free): https://www.brevo.com');
+  console.log('   1) Sign up → SMTP & API → Create API key');
+  console.log('   2) Senders → verify Eliteplacementhubhiring@gmail.com');
+  console.log('   3) Render → BREVO_API_KEY = your key');
+  console.log('   4) Redeploy backend\n');
 }
 
-if (pass.includes('@') || pass.length < 16) {
-  console.log('❌ SMTP_PASS =', pass ? `"${pass.slice(0, 3)}..."` : '(empty)');
-  console.log('   This looks like LOGIN password. Gmail rejects it.');
-  console.log('   Fix: https://myaccount.google.com/apppasswords');
-  console.log('   Use 16-character App Password in SMTP_PASS\n');
-} else {
-  console.log('✓ SMTP_PASS length looks like App Password (16 chars)\n');
+if (status.brevo) {
+  console.log('✓ BREVO_API_KEY set — OTP will work on Render\n');
 }
 
-if (process.env.RESEND_API_KEY?.trim()) {
-  console.log('✓ RESEND_API_KEY is set — real inbox works via Resend\n');
-} else {
-  console.log('○ RESEND_API_KEY not set');
-  console.log('  Free fix: https://resend.com/api-keys → add to .env\n');
+if (status.resend) {
+  console.log('✓ RESEND_API_KEY set — OTP will work on Render\n');
 }
 
-console.log('Test send: npm run test:otp-email -- your@gmail.com\n');
+if (pass.includes('@') || (pass && pass.length < 16)) {
+  console.log('❌ SMTP_PASS looks like login password, not App Password');
+  console.log('   Fix: https://myaccount.google.com/apppasswords\n');
+} else if (status.gmail) {
+  console.log('✓ Gmail App Password configured (works locally)\n');
+}
+
+console.log('Test: npm run test:otp-email -- your@gmail.com\n');

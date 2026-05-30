@@ -5,7 +5,6 @@ let transporter = null;
 let transporterMode = null;
 let initPromise = null;
 let gmailReady = false;
-let resendReady = false;
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -20,14 +19,26 @@ const hasSmtpConfig = () => Boolean(getSmtpUser() && getSmtpPass());
 
 const hasResendKey = () => Boolean(process.env.RESEND_API_KEY?.trim());
 
-const smtpTimeouts = {
-  connectionTimeout: isDev ? 8000 : 25000,
-  greetingTimeout: isDev ? 8000 : 25000,
-  socketTimeout: isDev ? 10000 : 30000,
-};
+const hasBrevoKey = () => Boolean(process.env.BREVO_API_KEY?.trim());
 
 function extractOtp(html) {
   return html.match(/>(\d{6})</)?.[1];
+}
+
+function getSenderEmail() {
+  return (
+    process.env.BREVO_SENDER_EMAIL?.trim() ||
+    getSmtpUser() ||
+    'Eliteplacementhubhiring@gmail.com'
+  );
+}
+
+function getSenderName() {
+  return process.env.BREVO_SENDER_NAME?.trim() || 'Elite Placement Hub';
+}
+
+function getFromAddress() {
+  return process.env.EMAIL_FROM?.trim() || `${getSenderName()} <${getSenderEmail()}>`;
 }
 
 async function createEtherealTransporter() {
@@ -37,12 +48,8 @@ async function createEtherealTransporter() {
 
   console.log('\n========================================');
   console.log('  ⚠ REAL EMAIL NOT CONFIGURED');
-  console.log('  OTP only in green toast / preview link');
-  console.log('  FIX (choose one):');
-  console.log('  1) Gmail App Password → SMTP_PASS in .env');
-  console.log('     https://myaccount.google.com/apppasswords');
-  console.log('  2) Resend API key → RESEND_API_KEY in .env');
-  console.log('     https://resend.com/api-keys (free)');
+  console.log('  Add BREVO_API_KEY or RESEND_API_KEY on Render');
+  console.log('  https://www.brevo.com (free 300/day)');
   console.log('========================================\n');
 
   return nodemailer.createTransport({
@@ -53,53 +60,38 @@ async function createEtherealTransporter() {
   });
 }
 
-async function createGmailTransporter() {
-  const user = getSmtpUser();
-  const pass = getSmtpPass();
+/** HTTP email — works on Render (no SMTP ports) */
+async function sendViaBrevo({ to, subject, html }) {
+  const apiKey = process.env.BREVO_API_KEY.trim();
 
-  if (!user || !pass) {
-    throw new Error('SMTP_USER and SMTP_PASS required');
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: getSenderName(), email: getSenderEmail() },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Brevo failed: ${text.slice(0, 180)}`);
   }
 
-  if (pass.length < 16 || pass.includes('@')) {
-    throw new Error(
-      'SMTP_PASS must be Google App Password (16 chars), not login password Elite@hub123'
-    );
-  }
-
-  const smtpOptions = {
-    auth: { user, pass },
-    ...smtpTimeouts,
-  };
-
-  const configs = [
-    { host: 'smtp.gmail.com', port: 465, secure: true },
-    { host: 'smtp.gmail.com', port: 587, secure: false },
-  ];
-
-  let lastErr;
-  for (const cfg of configs) {
-    try {
-      const transport = nodemailer.createTransport({
-        ...cfg,
-        ...smtpOptions,
-      });
-      await transport.verify();
-      transporterMode = 'gmail';
-      gmailReady = true;
-      console.log('\n✓ Gmail OK — OTP will arrive in real inbox from', user, '\n');
-      return transport;
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr;
+  console.log(`✓ OTP email sent via Brevo → ${to}`);
+  return { sent: true, provider: 'brevo', to };
 }
 
 async function sendViaResend({ to, subject, html }) {
   const apiKey = process.env.RESEND_API_KEY.trim();
   const from =
-    process.env.RESEND_FROM?.trim() || 'Elite Placement Hub <onboarding@resend.dev>';
+    process.env.RESEND_FROM?.trim() || `${getSenderName()} <onboarding@resend.dev>`;
 
   const resend = new Resend(apiKey);
   const { data, error } = await resend.emails.send({
@@ -110,12 +102,44 @@ async function sendViaResend({ to, subject, html }) {
   });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(`Resend failed: ${error.message}`);
   }
 
-  resendReady = true;
-  console.log(`✓ Email sent via Resend to ${to} (id: ${data?.id || 'ok'})`);
-  return { sent: true, gmail: true, resend: true, to, id: data?.id };
+  console.log(`✓ OTP email sent via Resend → ${to} (id: ${data?.id || 'ok'})`);
+  return { sent: true, provider: 'resend', to, id: data?.id };
+}
+
+/** Gmail SMTP — works locally; often blocked on Render cloud */
+async function sendViaGmail({ to, subject, html }) {
+  if (useTempMailOnly() || !hasSmtpConfig()) return null;
+
+  const user = getSmtpUser();
+  const pass = getSmtpPass();
+
+  if (pass.length < 16 || pass.includes('@')) {
+    throw new Error('SMTP_PASS must be 16-char Google App Password');
+  }
+
+  const transport = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+    family: 4,
+    connectionTimeout: 60000,
+    greetingTimeout: 30000,
+    socketTimeout: 60000,
+  });
+
+  await transport.sendMail({
+    from: getFromAddress(),
+    to,
+    subject,
+    html,
+  });
+
+  transporterMode = 'gmail';
+  gmailReady = true;
+  console.log(`✓ OTP email sent via Gmail → ${to}`);
+  return { sent: true, provider: 'gmail', to };
 }
 
 async function sendViaEthereal({ to, subject, html }) {
@@ -124,7 +148,7 @@ async function sendViaEthereal({ to, subject, html }) {
   }
 
   const info = await transporter.sendMail({
-    from: process.env.EMAIL_FROM || 'Elite Placement Hub <noreply@test.local>',
+    from: getFromAddress(),
     to,
     subject,
     html,
@@ -141,46 +165,40 @@ async function sendViaEthereal({ to, subject, html }) {
 
   return {
     sent: true,
-    gmail: false,
+    provider: 'ethereal',
     ethereal: true,
     previewUrl,
     to,
     devOtp,
-    emailWarning:
-      'Real email not configured. Use OTP from green toast. Set Gmail App Password OR RESEND_API_KEY in backend/.env',
   };
 }
 
-async function getGmailTransport() {
-  if (transporter && transporterMode === 'gmail' && gmailReady) {
-    return transporter;
-  }
-  transporter = await createGmailTransporter();
-  return transporter;
+async function tryBrevoSend(payload) {
+  if (!hasBrevoKey()) return null;
+  return sendViaBrevo(payload);
 }
 
-async function tryGmailSend({ to, subject, html }) {
-  if (useTempMailOnly() || !hasSmtpConfig()) return null;
-
-  const transport = await getGmailTransport();
-  const from = process.env.EMAIL_FROM || `Elite Placement Hub <${getSmtpUser()}>`;
-  await transport.sendMail({ from, to, subject, html });
-  return { sent: true, gmail: true, to };
-}
-
-async function tryResendSend({ to, subject, html }) {
+async function tryResendSend(payload) {
   if (!hasResendKey()) return null;
-  return sendViaResend({ to, subject, html });
+  return sendViaResend(payload);
 }
 
-/** Send to real inbox: Resend (production) → Gmail → Ethereal (dev only) */
+async function tryGmailSend(payload) {
+  if (useTempMailOnly() || !hasSmtpConfig()) return null;
+  return sendViaGmail(payload);
+}
+
+/**
+ * Production (Render): Brevo → Resend → Gmail (HTTP first — SMTP often blocked on cloud)
+ * Development: Gmail → Brevo → Resend → Ethereal test inbox
+ */
 export const sendEmail = async ({ to, subject, html }) => {
   const devOtp = extractOtp(html);
   const failures = [];
 
   const providers = isDev
-    ? [tryGmailSend, tryResendSend]
-    : [tryResendSend, tryGmailSend];
+    ? [tryGmailSend, tryBrevoSend, tryResendSend]
+    : [tryBrevoSend, tryResendSend, tryGmailSend];
 
   for (const provider of providers) {
     try {
@@ -189,8 +207,9 @@ export const sendEmail = async ({ to, subject, html }) => {
         return { ...result, devOtp };
       }
     } catch (err) {
-      failures.push(err.message?.split('\n')[0] || String(err));
-      console.warn('Email provider failed:', failures[failures.length - 1]);
+      const msg = err.message?.split('\n')[0] || String(err);
+      failures.push(msg);
+      console.warn('Email provider failed:', msg);
       gmailReady = false;
       transporter = null;
       transporterMode = null;
@@ -201,26 +220,24 @@ export const sendEmail = async ({ to, subject, html }) => {
     return sendViaEthereal({ to, subject, html });
   }
 
-  throw new Error(failures.join(' | ') || 'Email not configured on server');
+  throw new Error(failures.join(' | ') || 'No email provider configured');
 };
 
 async function ensureTransporter() {
+  if (hasBrevoKey()) {
+    console.log('\n✓ Brevo API configured — OTP via HTTP (Render-safe)\n');
+    return null;
+  }
+  if (hasResendKey()) {
+    console.log('\n✓ Resend API configured — OTP via HTTP (Render-safe)\n');
+    return null;
+  }
   if (useTempMailOnly()) {
     transporter = await createEtherealTransporter();
     return transporter;
   }
-  if (hasSmtpConfig()) {
-    try {
-      transporter = await createGmailTransporter();
-      return transporter;
-    } catch {
-      /* fall through */
-    }
-  }
-  if (hasResendKey()) {
-    resendReady = true;
-    console.log('\n✓ Resend API configured — OTP will go to real inbox\n');
-    return null;
+  if (hasSmtpConfig() && isDev) {
+    console.log('\n✓ Gmail configured for local dev\n');
   }
   if (isDev) {
     transporter = await createEtherealTransporter();
@@ -239,15 +256,25 @@ export const getEmailTransporter = async () => {
   return initPromise;
 };
 
+export const getEmailStatus = () => ({
+  gmail: hasSmtpConfig(),
+  brevo: hasBrevoKey(),
+  resend: hasResendKey(),
+  ready: hasBrevoKey() || hasResendKey() || hasSmtpConfig(),
+});
+
 export const isGmailReady = () => gmailReady;
-export const isResendReady = () => resendReady || hasResendKey();
+export const isResendReady = () => hasResendKey();
 
 export async function initEmailOnStartup() {
   try {
-    await getEmailTransporter();
-    if (!gmailReady && hasResendKey()) {
-      console.log('Email mode: Resend (real inbox)');
+    const status = getEmailStatus();
+    if (!status.ready && !isDev) {
+      console.error(
+        'EMAIL NOT READY: Add BREVO_API_KEY on Render → https://www.brevo.com (free)'
+      );
     }
+    await getEmailTransporter();
   } catch (err) {
     console.error('Email init:', err.message);
   }

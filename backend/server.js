@@ -9,7 +9,7 @@ import applicationRoutes from './routes/applicationRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import { BRAND_NAME, MONGODB_DB_NAME } from './config/brand.js';
-import { initEmailOnStartup } from './config/email.js';
+import { initEmailOnStartup, getEmailStatus } from './config/email.js';
 import { corsOrigin } from './config/client.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -32,10 +32,7 @@ app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     message: `${BRAND_NAME} API`,
-    email: {
-      gmail: Boolean(process.env.SMTP_USER && (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD)),
-      resend: Boolean(process.env.RESEND_API_KEY?.trim()),
-    },
+    email: getEmailStatus(),
   });
 });
 

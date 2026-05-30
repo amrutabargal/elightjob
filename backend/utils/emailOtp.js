@@ -6,7 +6,7 @@ import { PRIMARY_CLIENT_URL } from '../config/client.js';
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 const EMAIL_SEND_TIMEOUT_MS =
-  process.env.NODE_ENV === 'production' ? 45000 : 15000;
+  process.env.NODE_ENV === 'production' ? 60000 : 20000;
 
 export function generateOtp() {
   return String(crypto.randomInt(100000, 999999));
