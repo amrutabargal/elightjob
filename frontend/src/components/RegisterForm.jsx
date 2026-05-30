@@ -387,7 +387,7 @@ export default function RegisterForm({ onSubmit, loading, footer, premium = fals
 
       <button type="submit" disabled={loading} className="btn-primary w-full register-submit">
         <Icon name="person_add" size={18} />
-        {loading ? 'Registering...' : 'Register Free'}
+        {loading ? 'Creating account…' : 'Register Free'}
       </button>
 
       {footer}

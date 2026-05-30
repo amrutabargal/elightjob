@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import api from '../api/axios';
+import api, { getApiErrorMessage, warmUpApi } from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { scrollToSection } from '../utils/scroll';
 import Icon from './Icon';
@@ -49,6 +49,12 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
   }, [defaultEmail]);
 
   useEffect(() => {
+    if (mode === 'register') {
+      warmUpApi();
+    }
+  }, [mode]);
+
+  useEffect(() => {
     if (mode === 'verify' && verifyToken) {
       api
         .get(`/auth/verify-email/${verifyToken}`)
@@ -94,13 +100,14 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
       return;
     }
     setLoading(true);
+    const toastId = toast.loading('Creating account… server may take up to 1 min on first try.');
     try {
       const data = await register(payload);
       if (data.emailMode === 'gmail') {
-        toast.success(data.message || 'OTP sent to your email!', { duration: 10000 });
+        toast.success(data.message || 'OTP sent to your email!', { id: toastId, duration: 10000 });
       } else {
         if (data.devOtp) {
-          toast.success(`Your OTP: ${data.devOtp}`, { duration: 20000 });
+          toast.success(`Your OTP: ${data.devOtp}`, { id: toastId, duration: 20000 });
         }
         if (data.emailWarning) {
           toast(data.emailWarning, { icon: '⚠️', duration: 12000 });
@@ -108,14 +115,14 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
         if (data.previewUrl) {
           window.open(data.previewUrl, '_blank', 'noopener');
         }
-        toast.success(data.message || 'Use OTP shown above', { duration: 8000 });
+        toast.success(data.message || 'Use OTP shown above', { id: toastId, duration: 8000 });
       }
       if (data.userId) toast(`User ID: ${data.userId}`, { icon: 'ℹ️', duration: 8000 });
       setOtp('');
       setVerifyStatus('pending');
       onSwitch('verify', payload.email);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed');
+      toast.error(getApiErrorMessage(err, 'Registration failed'), { id: toastId });
     } finally {
       setLoading(false);
     }

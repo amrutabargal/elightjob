@@ -5,6 +5,7 @@ import { emailFooterHtml, SUPPORT_EMAIL } from '../config/support.js';
 import { PRIMARY_CLIENT_URL } from '../config/client.js';
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+const EMAIL_SEND_TIMEOUT_MS = 8000;
 
 export function generateOtp() {
   return String(crypto.randomInt(100000, 999999));
@@ -13,6 +14,14 @@ export function generateOtp() {
 export function getOtpExpiry() {
   return Date.now() + OTP_EXPIRY_MS;
 }
+
+const withEmailTimeout = (promise) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Email send timed out')), EMAIL_SEND_TIMEOUT_MS);
+    }),
+  ]);
 
 export async function sendOtpEmail(user, otp) {
   const loginUrl = PRIMARY_CLIENT_URL;
@@ -55,14 +64,25 @@ export async function sendOtpEmail(user, otp) {
   return { ...result, otp };
 }
 
-export async function assignOtpToUser(user) {
+export async function setOtpOnUser(user) {
   const otp = generateOtp();
   user.emailOtp = otp;
   user.emailOtpExpires = getOtpExpiry();
   user.verificationToken = undefined;
   user.verificationTokenExpires = undefined;
   await user.save();
-  const mailResult = await sendOtpEmail(user, otp);
+  return { otp };
+}
+
+export function sendOtpEmailInBackground(user, otp) {
+  withEmailTimeout(sendOtpEmail(user, otp)).catch((err) => {
+    console.error(`OTP email to ${user.email} failed:`, err.message);
+  });
+}
+
+export async function assignOtpToUser(user) {
+  const { otp } = await setOtpOnUser(user);
+  const mailResult = await withEmailTimeout(sendOtpEmail(user, otp));
   return {
     otp,
     previewUrl: mailResult?.previewUrl,

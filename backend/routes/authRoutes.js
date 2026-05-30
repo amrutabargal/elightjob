@@ -7,7 +7,7 @@ import User from '../models/User.js';
 import { sendEmail } from '../config/email.js';
 import { protect } from '../middleware/auth.js';
 import { generateUniqueUserId } from '../utils/generateUserId.js';
-import { assignOtpToUser } from '../utils/emailOtp.js';
+import { setOtpOnUser, sendOtpEmailInBackground } from '../utils/emailOtp.js';
 import { sendWelcomeEmail } from '../utils/welcomeEmail.js';
 import { PRIMARY_CLIENT_URL } from '../config/client.js';
 
@@ -104,19 +104,15 @@ router.post('/register', async (req, res) => {
       isVerified: false,
     });
 
-    const { otp, previewUrl, gmail, emailWarning } = await assignOtpToUser(user);
-    const realInbox = Boolean(gmail);
+    const { otp } = await setOtpOnUser(user);
+    sendOtpEmailInBackground(user, otp);
 
     res.status(201).json({
-      message: realInbox
-        ? `Registration successful! OTP sent to ${user.email}. Check inbox & spam folder.`
-        : `OTP for ${user.email} — see green toast (server email not configured for real inbox).`,
+      message: `Registration successful! OTP sent to ${user.email}. Check inbox & spam folder.`,
       userId: user.userId,
       email: user.email,
-      emailMode: realInbox ? 'gmail' : 'temp',
-      devOtp: realInbox ? undefined : otp,
-      previewUrl: realInbox ? undefined : previewUrl,
-      emailWarning: realInbox ? undefined : emailWarning,
+      emailMode: isDev ? 'temp' : 'gmail',
+      devOtp: isDev ? otp : undefined,
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -232,16 +228,13 @@ router.post('/resend-verification', async (req, res) => {
       return res.status(400).json({ message: 'Email is already verified. You can login.' });
     }
 
-    const { otp, previewUrl, gmail, emailWarning } = await assignOtpToUser(user);
+    const { otp } = await setOtpOnUser(user);
+    sendOtpEmailInBackground(user, otp);
 
     res.json({
-      message: gmail
-        ? `New OTP sent to ${user.email}. Check inbox & spam.`
-        : `New OTP for ${user.email} — see code below or preview link.`,
-      emailMode: gmail ? 'gmail' : 'temp',
-      devOtp: gmail ? undefined : otp,
-      previewUrl: gmail ? undefined : previewUrl,
-      emailWarning: gmail ? undefined : emailWarning,
+      message: `New OTP sent to ${user.email}. Check inbox & spam.`,
+      emailMode: isDev ? 'temp' : 'gmail',
+      devOtp: isDev ? otp : undefined,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

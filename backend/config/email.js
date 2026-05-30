@@ -61,6 +61,13 @@ async function createGmailTransporter() {
     );
   }
 
+  const smtpOptions = {
+    auth: { user, pass },
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000,
+  };
+
   const configs = [
     { host: 'smtp.gmail.com', port: 465, secure: true },
     { host: 'smtp.gmail.com', port: 587, secure: false },
@@ -71,7 +78,7 @@ async function createGmailTransporter() {
     try {
       const transport = nodemailer.createTransport({
         ...cfg,
-        auth: { user, pass },
+        ...smtpOptions,
       });
       await transport.verify();
       transporterMode = 'gmail';

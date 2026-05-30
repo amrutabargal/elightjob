@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { getApiErrorMessage } from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import RegisterForm from '../components/RegisterForm';
 
@@ -15,18 +16,20 @@ export default function Register() {
       return;
     }
     setLoading(true);
+    const toastId = toast.loading('Creating account… please wait.');
     try {
       const data = await register(payload);
       if (data.devOtp) {
-        toast.success(`Your OTP: ${data.devOtp}`, { duration: 20000 });
+        toast.success(`Your OTP: ${data.devOtp}`, { id: toastId, duration: 20000 });
         if (data.previewUrl) window.open(data.previewUrl, '_blank', 'noopener');
+      } else {
+        toast.success(data.message || 'OTP sent to your email!', { id: toastId });
       }
       if (data.emailWarning) toast(data.emailWarning, { icon: '⚠️', duration: 12000 });
-      toast.success(data.message || (data.emailMode === 'gmail' ? 'OTP sent to your email!' : 'Enter OTP from toast'));
       if (data.userId) toast(`User ID: ${data.userId}`, { icon: 'ℹ️' });
       navigate('/verify-email', { state: { email: payload.email, devOtp: data.devOtp, previewUrl: data.previewUrl } });
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed');
+      toast.error(getApiErrorMessage(err, 'Registration failed'), { id: toastId });
     } finally {
       setLoading(false);
     }
