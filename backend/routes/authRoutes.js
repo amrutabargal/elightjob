@@ -111,15 +111,13 @@ router.post('/register', async (req, res) => {
     } catch (err) {
       console.error('Register OTP email failed:', err.message);
       return res.status(503).json({
-        message: `Could not send OTP to ${user.email}. Please use Resend OTP or try again shortly.`,
+        message: 'Registration failed. Could not send OTP email.',
         email: user.email,
-        userId: user.userId,
       });
     }
 
     res.status(201).json({
-      message: `Registration successful! OTP sent to ${user.email}. Check inbox & spam folder.`,
-      userId: user.userId,
+      message: 'Registration successful',
       email: user.email,
     });
   } catch (err) {
@@ -243,12 +241,12 @@ router.post('/resend-verification', async (req, res) => {
     } catch (err) {
       console.error('Resend OTP email failed:', err.message);
       return res.status(503).json({
-        message: `Could not send OTP to ${user.email}. Please try again shortly.`,
+        message: 'Failed to send OTP',
       });
     }
 
     res.json({
-      message: `New OTP sent to ${user.email}. Check inbox & spam.`,
+      message: 'OTP sent successfully',
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

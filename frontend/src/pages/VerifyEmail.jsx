@@ -20,7 +20,7 @@ export default function VerifyEmail() {
         .get(`/auth/verify-email/${token}`)
         .then((res) => {
           setStatus('success');
-          toast.success(res.data.message);
+          toast.success('Verification successful');
         })
         .catch((err) => {
           setStatus('error');
@@ -39,7 +39,7 @@ export default function VerifyEmail() {
     try {
       const data = await verifyOtpAuth(email.trim(), otp.trim());
       setStatus('success');
-      toast.success(data.message);
+      toast.success('Verification successful');
       if (data.token) {
         setTimeout(() => {
           window.location.href = '/';
@@ -59,11 +59,11 @@ export default function VerifyEmail() {
     }
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/resend-verification', { email });
-      toast.success(data.message || 'New OTP sent! Check inbox & spam.');
+      await api.post('/auth/resend-verification', { email });
+      toast.success('OTP sent successfully');
       setOtp('');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to resend');
+      toast.error(err.response?.data?.message || 'Failed to send OTP');
     } finally {
       setLoading(false);
     }

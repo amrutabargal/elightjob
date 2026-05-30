@@ -396,15 +396,9 @@ export default function RegisterForm({ onSubmit, loading, footer, premium = fals
 }
 
 /** Profile fields (logged-in user) */
-export function ProfileFieldsForm({ profile, setProfile, onSubmit, saving, extraFields, userId }) {
+export function ProfileFieldsForm({ profile, setProfile, onSubmit, saving, extraFields }) {
   return (
     <form onSubmit={onSubmit} className="register-form space-y-4">
-      {userId && (
-        <div className="register-user-id-badge">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">User ID</span>
-          <span className="font-extrabold text-brand-orange tracking-wide">{userId}</span>
-        </div>
-      )}
       <div className="register-form-grid">
         <label className="register-field register-field-full">
           <span>Name</span>

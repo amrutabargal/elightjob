@@ -18,8 +18,8 @@ export default function ResetPassword() {
     }
     setLoading(true);
     try {
-      const { data } = await api.post(`/auth/reset-password/${token}`, { password });
-      toast.success(data.message);
+      await api.post(`/auth/reset-password/${token}`, { password });
+      toast.success('Password reset successful');
       navigate('/login');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Reset failed');

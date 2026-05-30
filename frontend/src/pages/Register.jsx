@@ -16,14 +16,12 @@ export default function Register() {
       return;
     }
     setLoading(true);
-    const toastId = toast.loading('Creating account… please wait.');
     try {
-      const data = await register(payload);
-      toast.success(data.message || 'OTP sent to your email! Check inbox & spam.', { id: toastId });
-      if (data.userId) toast(`User ID: ${data.userId}`, { icon: 'ℹ️' });
+      await register(payload);
+      toast.success('Registration successful');
       navigate('/verify-email', { state: { email: payload.email } });
     } catch (err) {
-      toast.error(getApiErrorMessage(err, 'Registration failed'), { id: toastId });
+      toast.error(getApiErrorMessage(err, 'Registration failed'));
     } finally {
       setLoading(false);
     }

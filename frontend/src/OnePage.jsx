@@ -336,7 +336,6 @@ export default function OnePage() {
               <div className="card lg:col-span-2">
                 <h3 className="text-xl font-bold mb-4">My Profile</h3>
                 <ProfileFieldsForm
-                  userId={user?.userId}
                   profile={profile}
                   setProfile={setProfile}
                   onSubmit={saveProfile}

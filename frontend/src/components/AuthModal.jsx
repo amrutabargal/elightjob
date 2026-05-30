@@ -60,7 +60,7 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
         .get(`/auth/verify-email/${verifyToken}`)
         .then((res) => {
           setVerifyStatus('success');
-          toast.success(res.data.message);
+          toast.success('Verification successful');
         })
         .catch((err) => {
           setVerifyStatus('error');
@@ -78,13 +78,13 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     setLoading(true);
     try {
       await login(email, password);
-      toast.success('Welcome back!');
+      toast.success('Login successful');
       onClose();
       scrollToSection('dashboard');
     } catch (err) {
       const data = err.response?.data;
       if (data?.needsVerification) {
-        toast.error('Enter OTP sent to your email first');
+        toast.error('Verification required. Check your email for OTP.');
         onSwitch('verify', data.email || email);
       } else {
         toast.error(data?.message || 'Login failed');
@@ -100,19 +100,14 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
       return;
     }
     setLoading(true);
-    const toastId = toast.loading('Creating account… server may take up to 1 min on first try.');
     try {
-      const data = await register(payload);
-      toast.success(data.message || 'OTP sent to your email! Check inbox & spam.', {
-        id: toastId,
-        duration: 10000,
-      });
-      if (data.userId) toast(`User ID: ${data.userId}`, { icon: 'ℹ️', duration: 8000 });
+      await register(payload);
+      toast.success('Registration successful');
       setOtp('');
       setVerifyStatus('pending');
       onSwitch('verify', payload.email);
     } catch (err) {
-      toast.error(getApiErrorMessage(err, 'Registration failed'), { id: toastId });
+      toast.error(getApiErrorMessage(err, 'Registration failed'));
     } finally {
       setLoading(false);
     }
@@ -122,8 +117,8 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/forgot-password', { email });
-      toast.success(data.message || 'Reset link sent! Check inbox & spam.', { duration: 10000 });
+      await api.post('/auth/forgot-password', { email });
+      toast.success('Email sent successfully');
       onSwitch('login');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Request failed');
@@ -137,8 +132,8 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     if (!resetToken) return;
     setLoading(true);
     try {
-      const { data } = await api.post(`/auth/reset-password/${resetToken}`, { password });
-      toast.success(data.message);
+      await api.post(`/auth/reset-password/${resetToken}`, { password });
+      toast.success('Password reset successful');
       onSwitch('login');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Reset failed');
@@ -159,13 +154,11 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     }
     setLoading(true);
     try {
-      const data = await verifyOtp(email.trim(), otp.trim());
+      await verifyOtp(email.trim(), otp.trim());
       setVerifyStatus('success');
-      toast.success(data.message);
-      if (data.token) {
-        onClose();
-        scrollToSection('dashboard');
-      }
+      toast.success('Verification successful');
+      onClose();
+      scrollToSection('dashboard');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Verification failed');
     } finally {
@@ -180,11 +173,11 @@ export default function AuthModal({ mode, onClose, onSwitch, verifyToken, resetT
     }
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/resend-verification', { email });
-      toast.success(data.message || 'New OTP sent! Check inbox & spam.', { duration: 10000 });
+      await api.post('/auth/resend-verification', { email });
+      toast.success('OTP sent successfully');
       setOtp('');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to resend');
+      toast.error(err.response?.data?.message || 'Failed to send OTP');
     } finally {
       setLoading(false);
     }

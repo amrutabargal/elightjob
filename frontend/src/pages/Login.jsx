@@ -14,12 +14,12 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      toast.success('Welcome back!');
+      toast.success('Login successful');
       navigate('/dashboard');
     } catch (err) {
       const data = err.response?.data;
       if (data?.needsVerification) {
-        toast.error('Verify OTP from your email first');
+        toast.error('Verification required. Check your email for OTP.');
         navigate('/verify-email', { state: { email: data.email || email } });
       } else {
         toast.error(data?.message || 'Login failed');
