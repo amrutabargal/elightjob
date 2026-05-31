@@ -11,17 +11,25 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: RENDER
+        value: true
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
         sync: false
       - key: CLIENT_URL
         value: https://elightplacementhub.netlify.app,https://eliteplacement.netlify.app,http://localhost:5173
-      - key: BREVO_API_KEY
+      - key: BREVO_V3_API_KEY
+        sync: false
+      - key: BREVO_SMTP_KEY
+        sync: false
+      - key: BREVO_SMTP_LOGIN
         sync: false
       - key: BREVO_SENDER_EMAIL
         value: Eliteplacementhubhiring@gmail.com
       - key: BREVO_SENDER_NAME
         value: Elite Placement Hub
+      - key: RESEND_API_KEY
+        sync: false
       - key: USE_TEMP_MAIL
         value: false
