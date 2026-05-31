@@ -256,12 +256,20 @@ export const getEmailTransporter = async () => {
   return initPromise;
 };
 
-export const getEmailStatus = () => ({
-  gmail: hasSmtpConfig(),
-  brevo: hasBrevoKey(),
-  resend: hasResendKey(),
-  ready: hasBrevoKey() || hasResendKey() || hasSmtpConfig(),
-});
+export const getEmailStatus = () => {
+  const hasHttpProvider = hasBrevoKey() || hasResendKey();
+  const productionReady = isDev ? hasHttpProvider || hasSmtpConfig() : hasHttpProvider;
+
+  return {
+    gmail: hasSmtpConfig(),
+    brevo: hasBrevoKey(),
+    resend: hasResendKey(),
+    ready: productionReady,
+    note: !isDev && !hasHttpProvider
+      ? 'Add BREVO_API_KEY on Render — Gmail SMTP blocked on cloud'
+      : undefined,
+  };
+};
 
 export const isGmailReady = () => gmailReady;
 export const isResendReady = () => hasResendKey();

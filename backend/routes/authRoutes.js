@@ -67,6 +67,11 @@ const validateRegistration = (body) => {
   return null;
 };
 
+async function deliverRegistrationOtp(user) {
+  const { otp } = await setOtpOnUser(user);
+  await sendOtpEmailWithTimeout(user, otp);
+}
+
 // @route   POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
@@ -80,43 +85,64 @@ router.post('/register', async (req, res) => {
     const phone = normalizeMobile(mobile);
     const emailLower = email.toLowerCase().trim();
 
-    const existsEmail = await User.findOne({ email: emailLower });
-    if (existsEmail) {
-      return res.status(400).json({ message: 'Email already registered' });
+    const existingEmail = await User.findOne({ email: emailLower });
+    if (existingEmail?.isVerified) {
+      return res.status(400).json({ message: 'Email already registered. Please login.' });
     }
 
-    const existsMobile = await User.findOne({ mobile: phone });
-    if (existsMobile) {
+    const existingMobile = await User.findOne({ mobile: phone });
+    if (existingMobile?.isVerified) {
+      return res.status(400).json({ message: 'Mobile number already registered' });
+    }
+    if (
+      existingMobile &&
+      !existingMobile.isVerified &&
+      existingMobile.email !== emailLower
+    ) {
       return res.status(400).json({ message: 'Mobile number already registered' });
     }
 
-    const userId = await generateUniqueUserId();
+    let user = existingEmail;
+    let isNewUser = false;
 
-    const user = await User.create({
-      userId,
-      name: name.trim(),
-      dateOfBirth: new Date(dateOfBirth),
-      gender,
-      mobile: phone,
-      email: emailLower,
-      address: address.trim(),
-      password,
-      isVerified: false,
-    });
-
-    const { otp } = await setOtpOnUser(user);
-
-    try {
-      await sendOtpEmailWithTimeout(user, otp);
-    } catch (err) {
-      console.error('Register OTP email failed:', err.message);
-      return res.status(503).json({
-        message: 'Registration failed. Could not send OTP email.',
-        email: user.email,
+    if (user) {
+      user.name = name.trim();
+      user.dateOfBirth = new Date(dateOfBirth);
+      user.gender = gender;
+      user.mobile = phone;
+      user.address = address.trim();
+      user.password = password;
+      await user.save();
+    } else {
+      isNewUser = true;
+      const userId = await generateUniqueUserId();
+      user = await User.create({
+        userId,
+        name: name.trim(),
+        dateOfBirth: new Date(dateOfBirth),
+        gender,
+        mobile: phone,
+        email: emailLower,
+        address: address.trim(),
+        password,
+        isVerified: false,
       });
     }
 
-    res.status(201).json({
+    try {
+      await deliverRegistrationOtp(user);
+    } catch (err) {
+      console.error('Register OTP email failed:', err.message);
+      if (isNewUser) {
+        await User.findByIdAndDelete(user._id);
+      }
+      return res.status(503).json({
+        message:
+          'Could not send OTP email. Server email not configured — contact admin or try again later.',
+      });
+    }
+
+    res.status(isNewUser ? 201 : 200).json({
       message: 'Registration successful',
       email: user.email,
     });
