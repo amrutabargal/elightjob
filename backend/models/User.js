@@ -45,6 +45,8 @@ const userSchema = new mongoose.Schema(
     location: { type: String, default: '' },
     resumePath: String,
     resumeOriginalName: String,
+    profilePhotoPath: String,
+    profilePhotoOriginalName: String,
     savedJobs: [{ type: String }],
   },
   { timestamps: true }

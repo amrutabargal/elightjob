@@ -8,6 +8,7 @@ import authRoutes from './routes/authRoutes.js';
 import applicationRoutes from './routes/applicationRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import jobRoutes from './routes/jobRoutes.js';
 import { BRAND_NAME, MONGODB_DB_NAME } from './config/brand.js';
 import { initEmailOnStartup, getEmailStatus } from './config/email.js';
 import { corsOrigin, isAllowedOrigin } from './config/client.js';
@@ -55,6 +56,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/jobs', jobRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

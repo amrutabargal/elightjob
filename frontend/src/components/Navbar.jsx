@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { scrollToSection } from '../utils/scroll';
+import { getUploadUrl, getUserInitials } from '../utils/uploads';
 import Logo from './Logo';
 import Icon from './Icon';
 
@@ -13,13 +14,16 @@ const NAV_ITEMS = [
   { id: 'contact', label: 'Contact' },
 ];
 
-export default function Navbar({ onOpenAuth }) {
-  const { logout, isAuthenticated } = useAuth();
+export default function Navbar({ onOpenAuth, onOpenProfile }) {
+  const { user, logout, isAuthenticated } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [activeId, setActiveId] = useState('home');
+  const profileRef = useRef(null);
 
   const nav = (id) => {
     setMenuOpen(false);
+    setProfileOpen(false);
     setActiveId(id);
     scrollToSection(id);
   };
@@ -27,6 +31,26 @@ export default function Navbar({ onOpenAuth }) {
   const closeAnd = (fn) => () => {
     setMenuOpen(false);
     fn();
+  };
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    const onClick = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [profileOpen]);
+
+  const photoUrl = getUploadUrl(user?.profilePhotoPath);
+  const initials = getUserInitials(user?.name);
+
+  const openProfile = () => {
+    setProfileOpen(false);
+    setMenuOpen(false);
+    onOpenProfile?.();
   };
 
   return (
@@ -60,9 +84,47 @@ export default function Navbar({ onOpenAuth }) {
                 <button type="button" onClick={() => nav('dashboard')} className="tc-nav-link hidden md:inline-flex text-sm">
                   Dashboard
                 </button>
-                <button type="button" onClick={logout} className="tc-nav-link hidden sm:inline-flex text-sm">
-                  Logout
-                </button>
+
+                <div className="nav-profile-wrap" ref={profileRef}>
+                  <button
+                    type="button"
+                    className="nav-profile-btn"
+                    onClick={() => setProfileOpen((o) => !o)}
+                    aria-expanded={profileOpen}
+                    aria-label="Open profile menu"
+                  >
+                    <span className="nav-profile-avatar">
+                      {photoUrl ? (
+                        <img src={photoUrl} alt={user?.name || 'Profile'} />
+                      ) : (
+                        <span>{initials}</span>
+                      )}
+                    </span>
+                    <Icon name="expand_more" size={18} className="nav-profile-chevron hidden sm:block" />
+                  </button>
+
+                  {profileOpen && (
+                    <div className="nav-profile-dropdown">
+                      <div className="nav-profile-dropdown-head">
+                        <p className="nav-profile-dropdown-name">{user?.name}</p>
+                        <p className="nav-profile-dropdown-email">{user?.email}</p>
+                        {user?.userId && <p className="nav-profile-dropdown-id">{user.userId}</p>}
+                      </div>
+                      <button type="button" onClick={openProfile} className="nav-profile-dropdown-item">
+                        <Icon name="person" size={20} />
+                        Edit Profile
+                      </button>
+                      <button type="button" onClick={() => nav('dashboard')} className="nav-profile-dropdown-item">
+                        <Icon name="dashboard" size={20} />
+                        Dashboard
+                      </button>
+                      <button type="button" onClick={closeAnd(logout)} className="nav-profile-dropdown-item nav-profile-dropdown-item--danger">
+                        <Icon name="logout" size={20} />
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               <button type="button" onClick={() => onOpenAuth('login')} className="tc-nav-link hidden sm:inline-flex text-sm">
@@ -98,6 +160,12 @@ export default function Navbar({ onOpenAuth }) {
             <div className="nav-mobile-auth">
               {isAuthenticated ? (
                 <>
+                  <button type="button" onClick={openProfile} className="btn-secondary">
+                    <span className="nav-mobile-avatar">
+                      {photoUrl ? <img src={photoUrl} alt="" /> : initials}
+                    </span>
+                    My Profile
+                  </button>
                   <button type="button" onClick={() => nav('dashboard')} className="btn-primary">
                     <Icon name="dashboard" size={20} />
                     Dashboard

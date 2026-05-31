@@ -34,4 +34,20 @@ export const uploadResume = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
+const photoFilter = (_req, file, cb) => {
+  const allowed = ['.jpg', '.jpeg', '.png', '.webp'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (allowed.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only JPG, PNG, and WEBP images are allowed'), false);
+  }
+};
+
+export const uploadPhoto = multer({
+  storage,
+  fileFilter: photoFilter,
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
+
 export const uploadDirPath = uploadDir;

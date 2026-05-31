@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import HomeHero from './components/HomeHero';
 import AuthModal from './components/AuthModal';
+import ProfileModal from './components/ProfileModal';
 import { ProfileFieldsForm, formatDobForInput } from './components/RegisterForm';
 import HowItWorks from './components/HowItWorks';
 import { scrollToSection } from './utils/scroll';
@@ -27,6 +28,7 @@ export default function OnePage() {
   const { user, isAuthenticated, refreshUser, loading: authLoading } = useAuth();
 
   const [authMode, setAuthMode] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [verifyToken, setVerifyToken] = useState(null);
   const [resetToken, setResetToken] = useState(null);
@@ -190,7 +192,7 @@ export default function OnePage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar onOpenAuth={openAuth} />
+      <Navbar onOpenAuth={openAuth} onOpenProfile={() => setProfileOpen(true)} />
 
       <HomeHero onBrowseJobs={scrollContact} onApplyCategory={handleApplyCategory} />
 
@@ -501,6 +503,8 @@ export default function OnePage() {
         resetToken={resetToken}
         defaultEmail={authEmail}
       />
+
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
 
     </div>
   );
