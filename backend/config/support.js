@@ -1,7 +1,7 @@
 export const SUPPORT_NAME = process.env.SUPPORT_NAME || 'Ashok Kumar';
 export const SUPPORT_PHONE = process.env.SUPPORT_PHONE || '7498115939';
 export const SUPPORT_EMAIL =
-  process.env.SUPPORT_EMAIL || 'Eliteplacementhubhiring@gmail.com';
+  process.env.SUPPORT_EMAIL || 'eliteplacementhubhiring@gmail.com';
 
 export function formatPhoneDisplay(phone = SUPPORT_PHONE) {
   const d = String(phone).replace(/\D/g, '');

@@ -50,10 +50,10 @@ function extractOtp(html) {
 }
 
 function getSenderEmail() {
-  const email =
-    process.env.BREVO_SENDER_EMAIL?.trim() ||
-    getSmtpUser() ||
-    'eliteplacementhubhiring@gmail.com';
+  // Production must use BREVO_SENDER_EMAIL only — never fall back to SMTP_USER (often wrong case).
+  const email = isProductionHost
+    ? process.env.BREVO_SENDER_EMAIL?.trim() || 'eliteplacementhubhiring@gmail.com'
+    : process.env.BREVO_SENDER_EMAIL?.trim() || getSmtpUser() || 'eliteplacementhubhiring@gmail.com';
   return email.toLowerCase();
 }
 
@@ -312,6 +312,8 @@ export const getEmailStatus = () => {
     brevoSmtp: hasBrevoSmtpKey(),
     brevoSmtpLoginSet: Boolean(getBrevoSmtpLogin()),
     resend: hasResendKey(),
+    senderEmail: getSenderEmail(),
+    senderName: getSenderName(),
     ready,
     production: isProductionHost,
     setupRequired: !ready,
