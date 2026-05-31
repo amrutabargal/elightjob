@@ -1,6 +1,7 @@
 const DEFAULT_ORIGINS = [
   'http://localhost:5173',
   'https://eliteplacement.netlify.app',
+  'https://elightplacementhub.netlify.app',
 ];
 
 const normalizeOrigin = (url) => url?.trim().replace(/\/$/, '') || '';

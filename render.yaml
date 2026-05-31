@@ -16,7 +16,7 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: CLIENT_URL
-        value: https://eliteplacement.netlify.app,http://localhost:5173
+        value: https://elightplacementhub.netlify.app,https://eliteplacement.netlify.app,http://localhost:5173
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_SENDER_EMAIL
