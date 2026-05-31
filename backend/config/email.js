@@ -287,7 +287,18 @@ export const sendEmail = async ({ to, subject, html }) => {
 
 export const canSendRealEmail = () => {
   if (isDev) return hasBrevoKey() || hasResendKey() || hasSmtpConfig();
-  return hasBrevoKey() || hasResendKey();
+  return hasBrevoHttpKey() || hasResendKey();
+};
+
+export const getEmailSetupHint = () => {
+  if (hasBrevoHttpKey() || hasResendKey()) return null;
+  if (hasBrevoSmtpKey()) {
+    return (
+      'Wrong Brevo key: xsmtpsib needs BREVO_SMTP_LOGIN = Brevo account email. ' +
+      'Use xkeysib- key from Brevo → API Keys tab instead.'
+    );
+  }
+  return 'Add BREVO_API_KEY (xkeysib-) on Render — Brevo → SMTP & API → API Keys.';
 };
 
 async function ensureTransporter() {
@@ -325,8 +336,10 @@ export const getEmailTransporter = async () => {
 };
 
 export const getEmailStatus = () => {
-  const hasHttpProvider = hasBrevoKey() || hasResendKey();
-  const productionReady = isDev ? hasHttpProvider || hasSmtpConfig() : hasHttpProvider;
+  const productionReady = isDev
+    ? hasBrevoKey() || hasResendKey() || hasSmtpConfig()
+    : hasBrevoHttpKey() || hasResendKey();
+  const setupHint = getEmailSetupHint();
 
   return {
     gmail: hasSmtpConfig(),
@@ -334,10 +347,11 @@ export const getEmailStatus = () => {
     brevoHttp: hasBrevoHttpKey(),
     brevoSmtp: hasBrevoSmtpKey(),
     resend: hasResendKey(),
-    ready: productionReady,
+    ready: productionReady && !setupHint,
     production: !isDev,
-    setupRequired: !isDev && !hasHttpProvider,
-    setupUrl: 'https://www.brevo.com',
+    setupRequired: Boolean(setupHint) || (!isDev && !productionReady),
+    setupHint,
+    setupUrl: 'https://app.brevo.com/settings/keys/api',
   };
 };
 
