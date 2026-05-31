@@ -50,11 +50,11 @@ function extractOtp(html) {
 }
 
 function getSenderEmail() {
-  return (
+  const email =
     process.env.BREVO_SENDER_EMAIL?.trim() ||
     getSmtpUser() ||
-    'Eliteplacementhubhiring@gmail.com'
-  );
+    'eliteplacementhubhiring@gmail.com';
+  return email.toLowerCase();
 }
 
 function getSenderName() {
@@ -62,7 +62,15 @@ function getSenderName() {
 }
 
 function getFromAddress() {
-  return process.env.EMAIL_FROM?.trim() || `${getSenderName()} <${getSenderEmail()}>`;
+  const raw = process.env.EMAIL_FROM?.trim();
+  if (raw) {
+    const match = raw.match(/^(.+?)\s*<([^>]+)>$/);
+    if (match) {
+      return `${match[1].trim()} <${match[2].trim().toLowerCase()}>`;
+    }
+    return raw.includes('@') ? raw.toLowerCase() : raw;
+  }
+  return `${getSenderName()} <${getSenderEmail()}>`;
 }
 
 async function createEtherealTransporter() {
@@ -95,8 +103,9 @@ async function sendViaBrevoHttp({ to, subject, html }) {
       Accept: 'application/json',
     },
     body: JSON.stringify({
-      sender: { name: getSenderName(), email: getSenderEmail() },
-      to: [{ email: to }],
+      sender: { name: getSenderName(), email: getSenderEmail().toLowerCase() },
+      to: [{ email: to.toLowerCase() }],
+      replyTo: { email: getSenderEmail().toLowerCase(), name: getSenderName() },
       subject,
       htmlContent: html,
     }),

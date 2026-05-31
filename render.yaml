@@ -26,7 +26,7 @@ services:
       - key: BREVO_SMTP_LOGIN
         sync: false
       - key: BREVO_SENDER_EMAIL
-        value: Eliteplacementhubhiring@gmail.com
+        value: eliteplacementhubhiring@gmail.com
       - key: BREVO_SENDER_NAME
         value: Elite Placement Hub
       - key: RESEND_API_KEY
