@@ -4,7 +4,7 @@ import { emailFooterHtml } from '../config/support.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User from '../models/User.js';
-import { sendEmail } from '../config/email.js';
+import { sendEmail, canSendRealEmail } from '../config/email.js';
 import { protect } from '../middleware/auth.js';
 import { generateUniqueUserId } from '../utils/generateUserId.js';
 import { setOtpOnUser, sendOtpEmailWithTimeout } from '../utils/emailOtp.js';
@@ -82,6 +82,13 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: validationError });
     }
 
+    if (!canSendRealEmail()) {
+      return res.status(503).json({
+        message:
+          'OTP email service not configured on server. Admin: add BREVO_API_KEY on Render (free at brevo.com).',
+      });
+    }
+
     const phone = normalizeMobile(mobile);
     const emailLower = email.toLowerCase().trim();
 
@@ -137,8 +144,7 @@ router.post('/register', async (req, res) => {
         await User.findByIdAndDelete(user._id);
       }
       return res.status(503).json({
-        message:
-          'Could not send OTP email. Server email not configured — contact admin or try again later.',
+        message: 'Could not send OTP email. Please try again or use Resend OTP.',
       });
     }
 
@@ -249,6 +255,12 @@ router.post('/verify-otp', async (req, res) => {
 // @route   POST /api/auth/resend-verification (sends new OTP)
 router.post('/resend-verification', async (req, res) => {
   try {
+    if (!canSendRealEmail()) {
+      return res.status(503).json({
+        message: 'OTP email service not configured on server.',
+      });
+    }
+
     const { email } = req.body;
     const user = await User.findOne({ email: email?.toLowerCase() });
 

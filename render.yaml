@@ -1,0 +1,27 @@
+# Render Blueprint — deploy backend with email env vars
+# Dashboard: New > Blueprint > connect repo, then fill secret values
+
+services:
+  - type: web
+    name: elightjob-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CLIENT_URL
+        value: https://eliteplacement.netlify.app,http://localhost:5173
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        value: Eliteplacementhubhiring@gmail.com
+      - key: BREVO_SENDER_NAME
+        value: Elite Placement Hub
+      - key: USE_TEMP_MAIL
+        value: false

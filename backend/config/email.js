@@ -189,7 +189,7 @@ async function tryGmailSend(payload) {
 }
 
 /**
- * Production (Render): Brevo → Resend → Gmail (HTTP first — SMTP often blocked on cloud)
+ * Production (Render): Brevo → Resend only (Gmail SMTP blocked on cloud — skip to fail fast)
  * Development: Gmail → Brevo → Resend → Ethereal test inbox
  */
 export const sendEmail = async ({ to, subject, html }) => {
@@ -198,7 +198,7 @@ export const sendEmail = async ({ to, subject, html }) => {
 
   const providers = isDev
     ? [tryGmailSend, tryBrevoSend, tryResendSend]
-    : [tryBrevoSend, tryResendSend, tryGmailSend];
+    : [tryBrevoSend, tryResendSend];
 
   for (const provider of providers) {
     try {
@@ -220,7 +220,18 @@ export const sendEmail = async ({ to, subject, html }) => {
     return sendViaEthereal({ to, subject, html });
   }
 
-  throw new Error(failures.join(' | ') || 'No email provider configured');
+  if (!hasBrevoKey() && !hasResendKey()) {
+    throw new Error(
+      'Email not configured: add BREVO_API_KEY on Render (https://www.brevo.com — free)'
+    );
+  }
+
+  throw new Error(failures.join(' | ') || 'All email providers failed');
+};
+
+export const canSendRealEmail = () => {
+  if (isDev) return hasBrevoKey() || hasResendKey() || hasSmtpConfig();
+  return hasBrevoKey() || hasResendKey();
 };
 
 async function ensureTransporter() {
@@ -265,9 +276,9 @@ export const getEmailStatus = () => {
     brevo: hasBrevoKey(),
     resend: hasResendKey(),
     ready: productionReady,
-    note: !isDev && !hasHttpProvider
-      ? 'Add BREVO_API_KEY on Render — Gmail SMTP blocked on cloud'
-      : undefined,
+    production: !isDev,
+    setupRequired: !isDev && !hasHttpProvider,
+    setupUrl: 'https://www.brevo.com',
   };
 };
 
