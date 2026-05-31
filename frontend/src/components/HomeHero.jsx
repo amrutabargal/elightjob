@@ -3,7 +3,7 @@ import CategoryCards, { CATEGORY_CARDS } from './CategoryCards';
 const HERO_IMAGE =
   'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=1800&q=85';
 
-export default function HomeHero({ onBrowseJobs, onApplyCategory }) {
+export default function HomeHero({ onBrowseJobs }) {
   return (
     <section id="home" className="hero-stack scroll-mt-16">
       <div className="hero-stack-inner">
@@ -31,7 +31,7 @@ export default function HomeHero({ onBrowseJobs, onApplyCategory }) {
         {/* Cards float on hero image (reference layout) */}
         <div id="opportunities" className="hero-cards-float scroll-mt-24">
           <div className="hero-cards-inner">
-            <CategoryCards onSelect={onApplyCategory} />
+            <CategoryCards />
           </div>
         </div>
       </div>

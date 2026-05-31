@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import api from '../api/axios';
+import { useState, useCallback, useRef } from 'react';
+import api, { warmUpApi, getApiErrorMessage } from '../api/axios';
 import Icon from './Icon';
 import { SavingsArt, CreditArt, DematArt } from './CategoryCardArt';
 
@@ -10,7 +10,7 @@ const CARDS = [
     Art: SavingsArt,
     title: 'Savings Accounts',
     tagline: 'Help Clients Start Saving Today!',
-    jobTitle: 'telecaller savings bank',
+    jobTitle: 'telecaller savings bank account',
     keywords: ['savings', 'bank account', 'passbook', 'deposit', 'account opening'],
     responsibilities: [
       'Help clients start saving today',
@@ -29,7 +29,7 @@ const CARDS = [
     Art: CreditArt,
     title: 'Credit Cards',
     tagline: 'Unlock Rewards & Convenience!',
-    jobTitle: 'telecaller credit card',
+    jobTitle: 'telecaller credit card sales',
     keywords: ['credit card', 'credit cards', 'rewards', 'visa', 'mastercard'],
     responsibilities: [
       'Unlock rewards & financial benefits',
@@ -48,7 +48,7 @@ const CARDS = [
     Art: DematArt,
     title: 'Demat Accounts',
     tagline: 'Enable Stock Trading & Investing!',
-    jobTitle: 'telecaller demat trading',
+    jobTitle: 'telecaller demat trading account',
     keywords: ['demat', 'trading', 'stock', 'investment', 'broker', 'equity'],
     responsibilities: [
       'Enable stock trading & investing',
@@ -66,6 +66,34 @@ const CARDS = [
 function matchCategoryJob(job, keywords) {
   const text = `${job.title || ''} ${job.description || ''} ${job.category || ''}`.toLowerCase();
   return keywords.some((kw) => text.includes(kw));
+}
+
+const TELE_KEYWORDS = [
+  'telecall',
+  'telesales',
+  'telecaller',
+  'bpo',
+  'call center',
+  'voice process',
+  'customer support',
+  'sales executive',
+  'financial product',
+  'banking sales',
+];
+
+function isTelecallingJob(job) {
+  const text = `${job.title || ''} ${job.description || ''} ${job.category || ''}`.toLowerCase();
+  return TELE_KEYWORDS.some((kw) => text.includes(kw));
+}
+
+function pickJobsForCategory(allJobs, card) {
+  const byCategory = allJobs.filter((job) => matchCategoryJob(job, card.keywords));
+  if (byCategory.length) return byCategory.slice(0, 10);
+
+  const tele = allJobs.filter(isTelecallingJob);
+  if (tele.length) return tele.slice(0, 10);
+
+  return allJobs.slice(0, 8);
 }
 
 function formatPosted(date) {
@@ -119,85 +147,71 @@ function CompactJobRow({ job }) {
   );
 }
 
-export default function CategoryCards({ onSelect }) {
-  const [allJobs, setAllJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [live, setLive] = useState(false);
-  const [expandedId, setExpandedId] = useState(null);
-  const [fetchError, setFetchError] = useState('');
+export default function CategoryCards() {
+  const panelRef = useRef(null);
 
-  const loadJobs = useCallback(async () => {
-    setLoading(true);
+  const [expandedId, setExpandedId] = useState(null);
+  const [categoryJobs, setCategoryJobs] = useState({});
+  const [loadingId, setLoadingId] = useState(null);
+  const [fetchError, setFetchError] = useState('');
+  const [live, setLive] = useState(false);
+
+  const fetchJobsForCategory = useCallback(async (cardId) => {
+    const card = CARDS.find((c) => c.id === cardId);
+    if (!card) return;
+
+    setLoadingId(cardId);
     setFetchError('');
+
     try {
+      await warmUpApi();
+
       const { data } = await api.get('/jobs', {
-        params: { title: 'telecaller', location: 'india' },
+        params: {
+          location: 'india',
+          refresh: 'true',
+        },
       });
-      setAllJobs(data.jobs || []);
+
+      const jobs = data.jobs || [];
+      const displayJobs = pickJobsForCategory(jobs, card);
+
+      setCategoryJobs((prev) => ({ ...prev, [cardId]: displayJobs }));
       setLive(data.live !== false);
-    } catch {
-      setFetchError('Could not load live jobs. Try again shortly.');
-      setAllJobs([]);
+    } catch (err) {
+      setFetchError(getApiErrorMessage(err, 'Could not load jobs'));
+      setCategoryJobs((prev) => ({ ...prev, [cardId]: [] }));
     } finally {
-      setLoading(false);
+      setLoadingId(null);
     }
   }, []);
 
-  useEffect(() => {
-    loadJobs();
-  }, [loadJobs]);
-
-  const jobsByCategory = useMemo(() => {
-    const map = {};
-    for (const card of CARDS) {
-      const matched = allJobs.filter((job) => matchCategoryJob(job, card.keywords));
-      map[card.id] = matched.length ? matched.slice(0, 8) : allJobs.slice(0, 5);
+  const handleViewVacancies = async (cardId) => {
+    if (expandedId === cardId) {
+      setExpandedId(null);
+      return;
     }
-    return map;
-  }, [allJobs]);
 
-  const countsByCategory = useMemo(() => {
-    const map = {};
-    for (const card of CARDS) {
-      map[card.id] = allJobs.filter((job) => matchCategoryJob(job, card.keywords)).length;
-    }
-    return map;
-  }, [allJobs]);
+    setExpandedId(cardId);
+    await fetchJobsForCategory(cardId);
 
-  const handleViewVacancies = (cardId) => {
-    setExpandedId((prev) => (prev === cardId ? null : cardId));
-    onSelect?.(cardId);
+    window.setTimeout(() => {
+      panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
   };
 
   const expandedCard = CARDS.find((c) => c.id === expandedId);
-  const expandedJobs = expandedId ? jobsByCategory[expandedId] || [] : [];
+  const expandedJobs = expandedId ? categoryJobs[expandedId] || [] : [];
+  const isLoading = loadingId === expandedId;
 
   return (
     <div className="ep-cards-wrap">
-      <div className="ep-cards-live-bar">
-        {loading ? (
-          <span className="ep-cards-live-pill ep-cards-live-pill--loading">
-            <span className="ep-live-dot" />
-            Loading live jobs…
-          </span>
-        ) : fetchError ? (
-          <button type="button" onClick={loadJobs} className="ep-cards-live-pill ep-cards-live-pill--error">
-            <Icon name="refresh" size={16} />
-            {fetchError} Retry
-          </button>
-        ) : (
-          <span className="ep-cards-live-pill">
-            <span className={`ep-live-dot ${live ? 'ep-live-dot--on' : ''}`} />
-            {allJobs.length} live telecalling roles · updated now
-          </span>
-        )}
-      </div>
-
       <div className="ep-cards-row">
         {CARDS.map((card) => {
           const Art = card.Art;
-          const count = countsByCategory[card.id] || 0;
           const isOpen = expandedId === card.id;
+          const count = categoryJobs[card.id]?.length;
+          const isFetching = loadingId === card.id;
 
           return (
             <article
@@ -211,10 +225,10 @@ export default function CategoryCards({ onSelect }) {
               <h3 className="ep-card-title">{card.title}</h3>
               <p className="ep-card-tagline">{card.tagline}</p>
 
-              {!loading && count > 0 && (
+              {count > 0 && !isFetching && (
                 <p className="ep-card-live-count">
                   <Icon name="work" size={16} />
-                  {count} open {count === 1 ? 'role' : 'roles'} live
+                  {count} {count === 1 ? 'role' : 'roles'} found
                 </p>
               )}
 
@@ -240,10 +254,25 @@ export default function CategoryCards({ onSelect }) {
               <button
                 type="button"
                 onClick={() => handleViewVacancies(card.id)}
+                disabled={isFetching}
                 className={`ep-card-btn ep-card-btn--${card.tone}`}
               >
-                {isOpen ? 'Hide Vacancies' : 'View Vacancies'}
-                <Icon name={isOpen ? 'expand_less' : 'expand_more'} size={20} />
+                {isFetching ? (
+                  <>
+                    <span className="cat-btn-spinner" aria-hidden />
+                    Fetching jobs…
+                  </>
+                ) : isOpen ? (
+                  <>
+                    Hide Vacancies
+                    <Icon name="expand_less" size={20} />
+                  </>
+                ) : (
+                  <>
+                    View Vacancies
+                    <Icon name="expand_more" size={20} />
+                  </>
+                )}
               </button>
             </article>
           );
@@ -251,30 +280,49 @@ export default function CategoryCards({ onSelect }) {
       </div>
 
       {expandedCard && (
-        <div className="cat-jobs-panel">
+        <div className="cat-jobs-panel" ref={panelRef} id="live-jobs-panel">
           <div className="cat-jobs-panel-head">
             <div>
-              <p className="cat-jobs-panel-kicker">Live openings</p>
-              <h3 className="cat-jobs-panel-title">{expandedCard.title} — Real-time Jobs</h3>
+              <p className="cat-jobs-panel-kicker">
+                {isLoading ? 'Fetching from API…' : live ? 'Live from API' : 'Latest openings'}
+              </p>
+              <h3 className="cat-jobs-panel-title">{expandedCard.title} — Jobs</h3>
             </div>
-            <button type="button" onClick={loadJobs} className="cat-jobs-refresh" disabled={loading}>
+            <button
+              type="button"
+              onClick={() => fetchJobsForCategory(expandedId)}
+              className="cat-jobs-refresh"
+              disabled={isLoading}
+            >
               <Icon name="refresh" size={18} />
               Refresh
             </button>
           </div>
 
-          {loading ? (
+          {isLoading ? (
             <div className="cat-jobs-loading">
               <div className="animate-spin w-8 h-8 border-4 border-brand-orange border-t-transparent rounded-full" />
+              <p className="cat-jobs-loading-text">Loading real-time jobs from API…</p>
+            </div>
+          ) : fetchError ? (
+            <div className="cat-jobs-error">
+              <Icon name="error" size={22} />
+              <p>{fetchError}</p>
+              <button type="button" onClick={() => fetchJobsForCategory(expandedId)} className="btn-primary text-sm">
+                Try Again
+              </button>
             </div>
           ) : expandedJobs.length === 0 ? (
-            <p className="cat-jobs-empty">No matching roles right now. Check back soon or contact us to apply.</p>
+            <p className="cat-jobs-empty">No matching roles right now. Try Refresh or contact us to apply.</p>
           ) : (
-            <div className="cat-jobs-list">
-              {expandedJobs.map((job) => (
-                <CompactJobRow key={job.id} job={job} />
-              ))}
-            </div>
+            <>
+              <p className="cat-jobs-count">{expandedJobs.length} jobs loaded</p>
+              <div className="cat-jobs-list">
+                {expandedJobs.map((job) => (
+                  <CompactJobRow key={job.id} job={job} />
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}

@@ -991,13 +991,13 @@ body {
 }
 
 .hero-stack-spacer {
-  height: 220px;
+  height: 280px;
   background: #fff;
 }
 
 @media (min-width: 768px) {
   .hero-stack-spacer {
-    height: 250px;
+    height: 320px;
   }
 }
 
@@ -2276,8 +2276,50 @@ body {
 
 .cat-jobs-loading {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
   padding: 2rem;
+}
+
+.cat-jobs-loading-text {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.cat-jobs-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  text-align: center;
+  color: #b91c1c;
+  background: #fef2f2;
+  border-radius: 0.75rem;
+}
+
+.cat-jobs-error p {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.cat-jobs-count {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #059669;
+  margin: 0 0 0.75rem;
+}
+
+.cat-btn-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 
 .cat-jobs-empty {

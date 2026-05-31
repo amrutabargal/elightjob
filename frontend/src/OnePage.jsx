@@ -173,7 +173,6 @@ export default function OnePage() {
   };
 
   const scrollContact = () => scrollToSection('contact');
-  const handleApplyCategory = () => scrollContact(); /* VIEW VACANCIES → contact */
 
   const filteredApps =
     appFilter === 'all' ? applications : applications.filter((a) => a.status === appFilter);
@@ -194,7 +193,7 @@ export default function OnePage() {
     <div className="min-h-screen flex flex-col">
       <Navbar onOpenAuth={openAuth} onOpenProfile={() => setProfileOpen(true)} />
 
-      <HomeHero onBrowseJobs={scrollContact} onApplyCategory={handleApplyCategory} />
+      <HomeHero onBrowseJobs={scrollContact} />
 
       {/* Stats strip */}
       <section id="testimonials" className="stats-section scroll-mt-16">
