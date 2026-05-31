@@ -19,7 +19,23 @@ const hasSmtpConfig = () => Boolean(getSmtpUser() && getSmtpPass());
 
 const hasResendKey = () => Boolean(process.env.RESEND_API_KEY?.trim());
 
-const hasBrevoKey = () => Boolean(process.env.BREVO_API_KEY?.trim());
+const getBrevoApiKeyRaw = () => process.env.BREVO_API_KEY?.trim() || '';
+
+const getBrevoHttpKey = () => {
+  const key = getBrevoApiKeyRaw();
+  return key.startsWith('xkeysib-') ? key : '';
+};
+
+const getBrevoSmtpKey = () => {
+  const smtpKey = process.env.BREVO_SMTP_KEY?.trim();
+  if (smtpKey) return smtpKey;
+  const key = getBrevoApiKeyRaw();
+  return key.startsWith('xsmtpsib-') ? key : '';
+};
+
+const hasBrevoHttpKey = () => Boolean(getBrevoHttpKey());
+const hasBrevoSmtpKey = () => Boolean(getBrevoSmtpKey());
+const hasBrevoKey = () => hasBrevoHttpKey() || hasBrevoSmtpKey();
 
 function extractOtp(html) {
   return html.match(/>(\d{6})</)?.[1];
@@ -60,9 +76,10 @@ async function createEtherealTransporter() {
   });
 }
 
-/** HTTP email — works on Render (no SMTP ports) */
-async function sendViaBrevo({ to, subject, html }) {
-  const apiKey = process.env.BREVO_API_KEY.trim();
+/** Brevo HTTP API — key must start with xkeysib- */
+async function sendViaBrevoHttp({ to, subject, html }) {
+  const apiKey = getBrevoHttpKey();
+  if (!apiKey) return null;
 
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
@@ -81,11 +98,39 @@ async function sendViaBrevo({ to, subject, html }) {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Brevo failed: ${text.slice(0, 180)}`);
+    throw new Error(`Brevo HTTP failed: ${text.slice(0, 180)}`);
   }
 
-  console.log(`✓ OTP email sent via Brevo → ${to}`);
-  return { sent: true, provider: 'brevo', to };
+  console.log(`✓ OTP email sent via Brevo HTTP → ${to}`);
+  return { sent: true, provider: 'brevo-http', to };
+}
+
+/** Brevo SMTP relay — key starts with xsmtpsib- */
+async function sendViaBrevoSmtp({ to, subject, html }) {
+  const smtpKey = getBrevoSmtpKey();
+  if (!smtpKey) return null;
+
+  const login = process.env.BREVO_SMTP_LOGIN?.trim() || getSenderEmail();
+
+  const transport = nodemailer.createTransport({
+    host: 'smtp-relay.brevo.com',
+    port: 587,
+    secure: false,
+    auth: { user: login, pass: smtpKey },
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
+  });
+
+  await transport.sendMail({
+    from: getFromAddress(),
+    to,
+    subject,
+    html,
+  });
+
+  console.log(`✓ OTP email sent via Brevo SMTP → ${to}`);
+  return { sent: true, provider: 'brevo-smtp', to };
 }
 
 async function sendViaResend({ to, subject, html }) {
@@ -175,7 +220,18 @@ async function sendViaEthereal({ to, subject, html }) {
 
 async function tryBrevoSend(payload) {
   if (!hasBrevoKey()) return null;
-  return sendViaBrevo(payload);
+
+  if (hasBrevoHttpKey()) {
+    try {
+      const result = await sendViaBrevoHttp(payload);
+      if (result?.sent) return result;
+    } catch (err) {
+      if (!hasBrevoSmtpKey()) throw err;
+      console.warn('Brevo HTTP failed, trying SMTP relay:', err.message);
+    }
+  }
+
+  return sendViaBrevoSmtp(payload);
 }
 
 async function tryResendSend(payload) {
@@ -236,7 +292,8 @@ export const canSendRealEmail = () => {
 
 async function ensureTransporter() {
   if (hasBrevoKey()) {
-    console.log('\n✓ Brevo API configured — OTP via HTTP (Render-safe)\n');
+    const mode = hasBrevoHttpKey() ? 'HTTP' : 'SMTP relay';
+    console.log(`\n✓ Brevo configured (${mode}) — OTP emails enabled\n`);
     return null;
   }
   if (hasResendKey()) {
@@ -274,6 +331,8 @@ export const getEmailStatus = () => {
   return {
     gmail: hasSmtpConfig(),
     brevo: hasBrevoKey(),
+    brevoHttp: hasBrevoHttpKey(),
+    brevoSmtp: hasBrevoSmtpKey(),
     resend: hasResendKey(),
     ready: productionReady,
     production: !isDev,
